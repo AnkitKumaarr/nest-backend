@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  moduleFormat    = "cjs" 
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  role         String   @default("user")
+  department   String?
+  status       String   @default("active")
+  tasksAssigned Task[]  @relation("assignedTasks")
+  tasksCreated  Task[]  @relation("createdTasks")
+  meetings      Meeting[]
+  activityLogs ActivityLog[]
+  meetingParticipants MeetingParticipant[]
+  notifications Notification[]
+  isEmailVerified Boolean  @default(false)
+  verificationOtp String?
+  otpExpires      DateTime?
+  resetToken      String?  @unique
+  resetTokenExp   DateTime?
+  googleId        String?  @unique
+  organizationId String?       @db.ObjectId
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Task {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskNumber  String   @unique
+  title       String
+  description String?
+  status      String
+  priority    String
+  dueDate     DateTime
+
+  assignedToId String? @db.ObjectId
+  createdById  String  @db.ObjectId
+
+  assignedTo User? @relation("assignedTasks", fields: [assignedToId], references: [id])
+  createdBy  User  @relation("createdTasks", fields: [createdById], references: [id])
+  organizationId String @db.ObjectId
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Meeting {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  meetingLink String?
+  status      String
+  isRecurring Boolean  @default(false)
+
+  createdById String @db.ObjectId
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  organizationId String @db.ObjectId
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  participants MeetingParticipant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MeetingParticipant {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  meetingId String @db.ObjectId
+  userId    String @db.ObjectId
+  status    String @default("pending")
+
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @db.ObjectId
+  title   String
+  message String
+  type    String
+  read    Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g., "CREATE_TASK", "DELETE_MEETING", "LOGIN"
+  entity    String   // e.g., "Task", "Meeting", "User"
+  entityId  String?  // The ID of the task/meeting changed
+  details   String?  // JSON string or description: "Changed priority from Low to High"
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Organization {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String   @unique // e.g., "acme-corp"
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  members     User[]
+  tasks       Task[]
+  meetings    Meeting[]
+}
+
