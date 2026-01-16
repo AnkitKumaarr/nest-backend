@@ -24,20 +24,57 @@ export class AuthService {
     private activityLogs: ActivityLogsService, // Injected
   ) {}
 
+  // async signIn(email: string, pass: string) {
+  //   const user = await this.prisma.user.findUnique({ where: { email } });
+  //   if (!user) throw new UnauthorizedException('Invalid credentials');
+
+  //   const isMatch = await bcrypt.compare(pass, user.passwordHash);
+  //   if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+
+  //   if (!user.isEmailVerified) {
+  //     throw new UnauthorizedException('Please verify your email first');
+  //   }
+
+  //   // 1. LOG: Successful Login
+  //   await this.activityLogs.log(
+  //     user.id,
+  //     'USER_LOGIN',
+  //     'Auth',
+  //     user.id,
+  //     'User logged in with email',
+  //   );
+
+  //   return this.generateTokens(user.id, user.email);
+  // }
+
   async signIn(email: string, pass: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // 1. Check if user exists
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
+    // 2. Check if user has a password (handle Google users)
+    if (!user.passwordHash || user.passwordHash === '') {
+      throw new UnauthorizedException(
+        'This account uses Google Login. Please sign in with Google.',
+      );
+    }
     const isMatch = await bcrypt.compare(pass, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
+    // 4. Verification Check
     if (!user.isEmailVerified) {
       throw new UnauthorizedException('Please verify your email first');
     }
 
-    // 1. LOG: Successful Login
-    await this.activityLogs.log(user.id, 'USER_LOGIN', 'Auth', user.id, 'User logged in with email');
-
+    await this.activityLogs.log(
+      this.prisma, // <--- Add this first!
+      user.id,
+      'USER_LOGIN',
+      'Auth',
+      user.id,
+      'User logged in with email',
+    );
     return this.generateTokens(user.id, user.email);
   }
 
@@ -46,7 +83,7 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found');
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 3600000); 
+    const resetTokenExp = new Date(Date.now() + 3600000);
 
     await this.prisma.user.update({
       where: { email },
@@ -54,14 +91,19 @@ export class AuthService {
     });
 
     // 2. LOG: Password Reset Request
-    await this.activityLogs.log(user.id, 'PASSWORD_RESET_REQUEST', 'Auth', user.id);
+    await this.activityLogs.log(
+      user.id,
+      'PASSWORD_RESET_REQUEST',
+      'Auth',
+      user.id,
+    );
 
     await this.mailService.sendPasswordReset(email, resetToken);
     return { message: 'Password reset link sent to your email' };
   }
 
   async resetPassword(token: string, newPass: string) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { resetToken: token },
     });
 
@@ -101,12 +143,17 @@ export class AuthService {
           lastName: googleUser.lastName,
           avatarUrl: googleUser.avatarUrl,
           googleId: googleUser.googleId,
-          isEmailVerified: true, 
+          isEmailVerified: true,
           passwordHash: '',
         },
       });
       // 4. LOG: New User via Google
-      await this.activityLogs.log(user.id, 'USER_SIGNUP_GOOGLE', 'Auth', user.id);
+      await this.activityLogs.log(
+        user.id,
+        'USER_SIGNUP_GOOGLE',
+        'Auth',
+        user.id,
+      );
     } else {
       user = await this.prisma.user.update({
         where: { email: googleUser.email },
@@ -116,7 +163,12 @@ export class AuthService {
         },
       });
       // 5. LOG: Google Login
-      await this.activityLogs.log(user.id, 'USER_LOGIN_GOOGLE', 'Auth', user.id);
+      await this.activityLogs.log(
+        user.id,
+        'USER_LOGIN_GOOGLE',
+        'Auth',
+        user.id,
+      );
     }
 
     return this.generateTokens(user.id, user.email);
@@ -145,20 +197,30 @@ export class AuthService {
 
       try {
         await this.mailService.sendOtp(dto.email, otp);
-        
+
         // 6. LOG: Account Created (Pending Verification)
-        await this.activityLogs.log(newUser.id, 'USER_SIGNUP_INITIATED', 'Auth', newUser.id);
-        
+        await this.activityLogs.log(
+          tx,
+          newUser.id,
+          'USER_SIGNUP_INITIATED',
+          'Auth',
+          newUser.id,
+        );
+
         return { message: 'OTP sent to your email' };
       } catch (error) {
+        console.log('Error sending OTP email:', error);
         throw new InternalServerErrorException(
-          'Failed to send verification email. Please try again.'
+          'Failed to send verification email. Please try again.',
         );
       }
     });
   }
 
   async verifyEmail(email: string, otp: string) {
+    if (!email || !otp) {
+      throw new BadRequestException('Email and OTP are required');
+    }
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (
       !user ||
@@ -175,7 +237,13 @@ export class AuthService {
     });
 
     // 7. LOG: Email Verified
-    await this.activityLogs.log(user.id, 'EMAIL_VERIFIED', 'Auth', user.id);
+    await this.activityLogs.log(
+      this.prisma,
+      user.id,
+      'EMAIL_VERIFIED',
+      'Auth',
+      user.id,
+    );
 
     await this.mailService.sendWelcome(email, user.firstName);
     return this.generateTokens(user.id, user.email);
@@ -184,9 +252,23 @@ export class AuthService {
   private async generateTokens(userId: string, email: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    const payload = { sub: userId, email, role: user.role , orgId: user.organizationId };
+    const payload = {
+      sub: userId,
+      email,
+      role: user.role,
+      orgId: user.organizationId,
+    };
     return {
       access_token: await this.jwtService.signAsync(payload),
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        role: user.role,
+        orgId: user.organizationId,
+      },
     };
   }
 }

@@ -9,14 +9,41 @@ export class ActivityLogsService {
     private prisma: PrismaService,
   ) {}
 
+  // async log(
+  //   userId: string,
+  //   action: string,
+  //   entity: string,
+  //   entityId?: string,
+  //   details?: string,
+  // ) {
+  //   const log = await this.prisma.activityLog.create({
+  //     data: { userId, action, entity, entityId, details },
+  //     include: {
+  //       user: {
+  //         select: { firstName: true, lastName: true, organizationId: true },
+  //       },
+  //     },
+  //   });
+  //   if (log.user?.organizationId) {
+  //     this.eventsGateway.sendToOrg(
+  //       log.user.organizationId,
+  //       'NEW_ACTIVITY_LOG',
+  //       log,
+  //     );
+  //   }
+
+  //   return log;
+  // }
+
   async log(
+    prisma: PrismaService  | any, // tx or prisma
     userId: string,
     action: string,
     entity: string,
     entityId?: string,
     details?: string,
   ) {
-    const log = await this.prisma.activityLog.create({
+    const log = await prisma.activityLog.create({
       data: { userId, action, entity, entityId, details },
       include: {
         user: {
@@ -24,6 +51,7 @@ export class ActivityLogsService {
         },
       },
     });
+
     if (log.user?.organizationId) {
       this.eventsGateway.sendToOrg(
         log.user.organizationId,

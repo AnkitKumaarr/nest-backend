@@ -34,13 +34,11 @@ model User {
   isEmailVerified Boolean  @default(false)
   verificationOtp String?
   otpExpires      DateTime?
-  resetToken      String?  @unique
+  resetToken      String?  
   resetTokenExp   DateTime?
-  googleId        String?  @unique
+  googleId        String? 
   organizationId String?       @db.ObjectId
   organization   Organization? @relation(fields: [organizationId], references: [id])
-
-
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
