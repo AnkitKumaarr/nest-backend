@@ -50,7 +50,6 @@ export class MailService {
 
   async sendPasswordReset(email: string, token: string) {
     const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    console.log("Ankit ---> reset url", url)
     const html = `<p>Click <a href="${url}">here</a> to reset your password.</p>`;
     await this.sendViaApi(email, 'Reset Your Password', html);
   }

@@ -13,6 +13,8 @@ import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { GoogleService } from './google.service';
 import { ActivityLogsService } from 'src/activity-logs/activity-logs.service'; // Added
+import { OAuth2Client } from 'google-auth-library';
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 @Injectable()
 export class AuthService {
@@ -52,7 +54,7 @@ export class AuthService {
       user.id,
       'User logged in with email',
     );
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
   }
 
   async forgotPassword(email: string) {
@@ -115,52 +117,6 @@ export class AuthService {
       user.id,
     );
     return { message: 'Password updated successfully' };
-  }
-
-  async googleAuth(googleToken: string) {
-    const googleUser = await this.googleService.getGoogleUser(googleToken);
-
-    let user = await this.prisma.user.findUnique({
-      where: { email: googleUser.email },
-    });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: googleUser.email,
-          firstName: googleUser.firstName,
-          lastName: googleUser.lastName,
-          avatarUrl: googleUser.avatarUrl,
-          googleId: googleUser.googleId,
-          isEmailVerified: true,
-          passwordHash: '',
-        },
-      });
-      // 4. LOG: New User via Google
-      await this.activityLogs.log(
-        user.id,
-        'USER_SIGNUP_GOOGLE',
-        'Auth',
-        user.id,
-      );
-    } else {
-      user = await this.prisma.user.update({
-        where: { email: googleUser.email },
-        data: {
-          googleId: googleUser.googleId,
-          avatarUrl: googleUser.avatarUrl,
-        },
-      });
-      // 5. LOG: Google Login
-      await this.activityLogs.log(
-        user.id,
-        'USER_LOGIN_GOOGLE',
-        'Auth',
-        user.id,
-      );
-    }
-
-    return this.generateTokens(user.id, user.email);
   }
 
   async signup(dto: SignupDto) {
@@ -251,15 +207,51 @@ export class AuthService {
     );
 
     await this.mailService.sendWelcome(email, user.firstName);
-    return this.generateTokens(user.id, user.email);
+    return this.generateTokens(user);
   }
 
-  private async generateTokens(userId: string, email: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+  async googleAuth(dto: { idToken: string }) {
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: dto.idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      const email = payload.email; // Ensure this is a string
+
+      const user = await this.prisma.user.upsert({
+        where: { email: email },
+        update: {
+          avatarUrl: payload.picture || null,
+          firstName: payload.given_name || 'User',
+          lastName: payload.family_name || '',
+          isEmailVerified: true,
+        },
+        create: {
+          email: email,
+          firstName: payload.given_name || 'User',
+          lastName: payload.family_name || '',
+          avatarUrl: payload.picture || '',
+          isEmailVerified: true,
+          passwordHash: '',
+        },
+      });
+      await this.mailService.sendWelcome(email, user.firstName);
+      return this.generateTokens(user);
+    } catch (error) {
+      console.error('Prisma/Google Error:', error);
+      throw new UnauthorizedException('Google authentication failed');
+    }
+  }
+  private async generateTokens(user: any) {
     const payload = {
-      sub: userId,
-      email,
+      sub: user.id,
+      email: user.email,
       role: user.role,
       orgId: user.organizationId,
     };

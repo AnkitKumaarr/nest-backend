@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { CustomAuthGuard } from './guards/auth.guard';
@@ -35,10 +42,9 @@ export class AuthController {
   async resendOtp(@Body() body: { email: string }) {
     return this.authService.resendOtp(body.email);
   }
-
   @Post('google')
-  async googleLogin(@Body('token') token: string) {
-    return this.authService.googleAuth(token);
+  async googleLogin(@Body() body: { idToken: string }) {
+    return this.authService.googleAuth(body);
   }
 
   // Example of a Protected Route
