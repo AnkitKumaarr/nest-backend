@@ -24,29 +24,6 @@ export class AuthService {
     private activityLogs: ActivityLogsService, // Injected
   ) {}
 
-  // async signIn(email: string, pass: string) {
-  //   const user = await this.prisma.user.findUnique({ where: { email } });
-  //   if (!user) throw new UnauthorizedException('Invalid credentials');
-
-  //   const isMatch = await bcrypt.compare(pass, user.passwordHash);
-  //   if (!isMatch) throw new UnauthorizedException('Invalid credentials');
-
-  //   if (!user.isEmailVerified) {
-  //     throw new UnauthorizedException('Please verify your email first');
-  //   }
-
-  //   // 1. LOG: Successful Login
-  //   await this.activityLogs.log(
-  //     user.id,
-  //     'USER_LOGIN',
-  //     'Auth',
-  //     user.id,
-  //     'User logged in with email',
-  //   );
-
-  //   return this.generateTokens(user.id, user.email);
-  // }
-
   async signIn(email: string, pass: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
@@ -79,9 +56,13 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new NotFoundException('User not found');
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
 
+    if (!user) {
+      return { message: 'If an account exists, a reset link has been sent.' };
+    }
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExp = new Date(Date.now() + 3600000);
 
@@ -92,17 +73,20 @@ export class AuthService {
 
     // 2. LOG: Password Reset Request
     await this.activityLogs.log(
+      this.prisma,
       user.id,
       'PASSWORD_RESET_REQUEST',
       'Auth',
       user.id,
     );
-
     await this.mailService.sendPasswordReset(email, resetToken);
     return { message: 'Password reset link sent to your email' };
   }
 
   async resetPassword(token: string, newPass: string) {
+    if (!newPass) {
+      throw new BadRequestException('New password is required');
+    }
     const user = await this.prisma.user.findFirst({
       where: { resetToken: token },
     });
@@ -123,8 +107,13 @@ export class AuthService {
     });
 
     // 3. LOG: Successful Password Update
-    await this.activityLogs.log(user.id, 'PASSWORD_CHANGED', 'Auth', user.id);
-
+    await this.activityLogs.log(
+      this.prisma,
+      user.id,
+      'PASSWORD_CHANGED',
+      'Auth',
+      user.id,
+    );
     return { message: 'Password updated successfully' };
   }
 
@@ -209,7 +198,6 @@ export class AuthService {
 
         return { message: 'OTP sent to your email' };
       } catch (error) {
-        console.log('Error sending OTP email:', error);
         throw new InternalServerErrorException(
           'Failed to send verification email. Please try again.',
         );

@@ -31,6 +31,10 @@ export class AuthController {
   async resetPassword(@Body() body: { token: string; newPass: string }) {
     return this.authService.resetPassword(body.token, body.newPass);
   }
+  @Post('resend-otp')
+  async resendOtp(@Body() body: { email: string }) {
+    return this.authService.resendOtp(body.email);
+  }
 
   @Post('google')
   async googleLogin(@Body('token') token: string) {
