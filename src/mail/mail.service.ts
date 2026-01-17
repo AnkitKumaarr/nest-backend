@@ -1,38 +1,56 @@
 import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: 587,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
+  private RESEND_API_KEY = process.env.RESEND_API_KEY;
+  private API_URL = 'https://api.resend.com/emails';
+
+  private async sendViaApi(to: string, subject: string, html: string) {
+    try {
+      const response = await fetch(this.API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: 'Prody <onboarding@resend.dev>', // Use their test domain or verify your own for free
+          to,
+          subject,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Resend Error:', error);
+        throw new Error('Failed to send email');
+      }
+    } catch (error) {
+      console.error('Mail Service Error:', error);
+      throw error;
+    }
+  }
 
   async sendOtp(email: string, otp: string) {
-    await this.transporter.sendMail({
-      from: '"SaaS Support" <no-reply@saas.com>',
-      to: email,
-      subject: 'Verification Code',
-      text: `Your OTP is ${otp}. It expires in 10 minutes.`,
-    });
+    const html = `
+      <div style="font-family: sans-serif; padding: 20px;">
+        <h2>Verification Code</h2>
+        <p>Your OTP is: <strong style="font-size: 24px;">${otp}</strong></p>
+        <p>It expires in 10 minutes.</p>
+      </div>
+    `;
+    await this.sendViaApi(email, 'Verification Code', html);
   }
 
   async sendWelcome(email: string, name: string) {
-    await this.transporter.sendMail({
-      from: '"SaaS Team" <hello@saas.com>',
-      to: email,
-      subject: 'Welcome!',
-      text: `Hi ${name}, your email is verified. Welcome to our product!`,
-    });
+    const html = `<p>Hi ${name}, welcome to Prody! Your email is verified.</p>`;
+    await this.sendViaApi(email, 'Welcome to Prody!', html);
   }
+
   async sendPasswordReset(email: string, token: string) {
-    const url = `http://localhost:3000/reset-password?token=${token}`; // Update to your frontend URL
-    await this.transporter.sendMail({
-      from: '"Security" <security@saas.com>',
-      to: email,
-      subject: 'Reset Password',
-      html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
-    });
+    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const html = `<p>Click <a href="${url}">here</a> to reset your password.</p>`;
+    await this.sendViaApi(email, 'Reset Your Password', html);
   }
 }

@@ -216,6 +216,23 @@ export class AuthService {
       }
     });
   }
+  async resendOtp(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.isEmailVerified)
+      throw new BadRequestException('Email already verified');
+
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { email },
+      data: { verificationOtp: newOtp, otpExpires },
+    });
+
+    await this.mailService.sendOtp(email, newOtp);
+    return { message: 'New OTP sent to your email' };
+  }
 
   async verifyEmail(email: string, otp: string) {
     if (!email || !otp) {
