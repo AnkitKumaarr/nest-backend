@@ -72,7 +72,7 @@ export class MeetingsService {
         OR: [{ createdById: userId }, { participants: { some: { userId } } }],
       },
       include: {
-        createdBy: { select: { firstName: true, lastName: true, email: true } },
+        createdBy: { select: { fullName: true, email: true } },
         participants: true,
       },
       orderBy: { startTime: 'asc' },

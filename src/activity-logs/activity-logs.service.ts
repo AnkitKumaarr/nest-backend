@@ -20,7 +20,7 @@ export class ActivityLogsService {
   //     data: { userId, action, entity, entityId, details },
   //     include: {
   //       user: {
-  //         select: { firstName: true, lastName: true, organizationId: true },
+  //         select: { fullName: true, organizationId: true },
   //       },
   //     },
   //   });
@@ -47,7 +47,7 @@ export class ActivityLogsService {
       data: { userId, action, entity, entityId, details },
       include: {
         user: {
-          select: { firstName: true, lastName: true, organizationId: true },
+          select: { fullName: true, organizationId: true },
         },
       },
     });
@@ -68,7 +68,7 @@ export class ActivityLogsService {
     return this.prisma.activityLog.findMany({
       where: filter,
       include: {
-        user: { select: { firstName: true, lastName: true, email: true } },
+        user: { select: { fullName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,

@@ -11,8 +11,7 @@ export class GoogleService {
 
     return {
       email: data.email,
-      firstName: data.given_name,
-      lastName: data.family_name,
+      fullName: data.given_name,
       avatarUrl: data.picture, // Storing image from Google
       googleId: data.sub,
     };

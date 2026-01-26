@@ -26,7 +26,7 @@ export class AuthService {
     private activityLogs: ActivityLogsService, // Injected
   ) {}
 
-  async signIn(email: string, pass: string) {
+  async signIn(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
 
     // 1. Check if user exists
@@ -38,8 +38,11 @@ export class AuthService {
         'This account uses Google Login. Please sign in with Google.',
       );
     }
-    const isMatch = await bcrypt.compare(pass, user.passwordHash);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+    console.log("user.passwordHash", user.passwordHash);
+    console.log("password", password);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    console.log("isMatch", isMatch);
+    if (!isMatch) throw new UnauthorizedException('Invalid password or email');
 
     // 4. Verification Check
     if (!user.isEmailVerified) {
@@ -141,7 +144,8 @@ export class AuthService {
       });
 
       try {
-        await this.mailService.sendOtp(dto.email, otp);
+        // await this.mailService.sendOtp(dto.email, otp);
+        console.log('OTP sent to your email', otp);
 
         // 6. LOG: Account Created (Pending Verification)
         await this.activityLogs.log(
@@ -206,7 +210,7 @@ export class AuthService {
       user.id,
     );
 
-    await this.mailService.sendWelcome(email, user.firstName);
+    await this.mailService.sendWelcome(email, user.fullName);
     return this.generateTokens(user);
   }
 
@@ -228,20 +232,18 @@ export class AuthService {
         where: { email: email },
         update: {
           avatarUrl: payload.picture || null,
-          firstName: payload.given_name || 'User',
-          lastName: payload.family_name || '',
+          fullName: payload.given_name || 'User',
           isEmailVerified: true,
         },
         create: {
           email: email,
-          firstName: payload.given_name || 'User',
-          lastName: payload.family_name || '',
+          fullName: payload.given_name || 'User',
           avatarUrl: payload.picture || '',
           isEmailVerified: true,
           passwordHash: '',
         },
       });
-      await this.mailService.sendWelcome(email, user.firstName);
+      await this.mailService.sendWelcome(email, user.fullName);
       return this.generateTokens(user);
     } catch (error) {
       console.error('Prisma/Google Error:', error);
@@ -259,8 +261,7 @@ export class AuthService {
       access_token: await this.jwtService.signAsync(payload),
       user: {
         id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        fullName: user.fullName,
         email: user.email,
         avatarUrl: user.avatarUrl,
         role: user.role,

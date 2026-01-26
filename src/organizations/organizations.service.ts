@@ -71,8 +71,7 @@ export class OrganizationsService {
         members: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
+            fullName: true,
             email: true,
             role: true,
           },

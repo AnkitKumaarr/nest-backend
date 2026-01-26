@@ -25,8 +25,8 @@ export class AuthController {
   }
 
   @Post('signin')
-  async signin(@Body() body: { email: string; pass: string }) {
-    return this.authService.signIn(body.email, body.pass);
+  async signin(@Body() body: { email: string; password: string }) {
+    return this.authService.signIn(body.email, body.password);
   }
 
   @Post('forgot-password')
