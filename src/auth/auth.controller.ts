@@ -50,7 +50,9 @@ export class AuthController {
   // Example of a Protected Route
   @UseGuards(CustomAuthGuard)
   @Get('me')
-  getProfile(@Request() req) {
-    return req.user; // Set by CustomAuthGuard
+  async getProfile(@Request() req) {
+    const userId = req.user.sub; // Get user ID from JWT payload
+    const user = await this.authService.getUserById(userId);
+    return user;
   }
 }

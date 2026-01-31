@@ -3,7 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { GoogleService } from './google.service';
-import { MailService } from '../mail/mail.service';
+import { MailModule } from '../mail/mail.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
@@ -13,11 +13,11 @@ import { PrismaService } from '../prisma/prisma.service';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' }, // SaaS standard: 1 day expiry
     }),
+    MailModule,
   ],
   providers: [
     AuthService, 
     GoogleService, 
-    MailService, 
     PrismaService
   ],
   controllers: [AuthController],

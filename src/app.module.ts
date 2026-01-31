@@ -11,6 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { EventsModule } from './gateways/events.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EventsModule } from './gateways/events.module';
     AnalyticsModule,
     ActivityLogsModule,
     OrganizationsModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

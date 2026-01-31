@@ -38,15 +38,16 @@ export class AuthService {
         'This account uses Google Login. Please sign in with Google.',
       );
     }
-    console.log("user.passwordHash", user.passwordHash);
-    console.log("password", password);
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    console.log("isMatch", isMatch);
     if (!isMatch) throw new UnauthorizedException('Invalid password or email');
 
     // 4. Verification Check
     if (!user.isEmailVerified) {
-      throw new UnauthorizedException('Please verify your email first');
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Please verify your email first',
+        errorMsg: 'EMAIL_VERIFICATION_FAILED',
+      });
     }
 
     await this.activityLogs.log(
@@ -84,7 +85,12 @@ export class AuthService {
       'Auth',
       user.id,
     );
-    await this.mailService.sendPasswordReset(email, resetToken);
+    try {
+      await this.mailService.sendPasswordReset(email, resetToken);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      // Don't expose email service issues to user
+    }
     return { message: 'Password reset link sent to your email' };
   }
 
@@ -144,7 +150,7 @@ export class AuthService {
       });
 
       try {
-        // await this.mailService.sendOtp(dto.email, otp);
+        await this.mailService.sendOtp(dto.email, otp);
         console.log('OTP sent to your email', otp);
 
         // 6. LOG: Account Created (Pending Verification)
@@ -158,9 +164,10 @@ export class AuthService {
 
         return { message: 'OTP sent to your email' };
       } catch (error) {
-        throw new InternalServerErrorException(
-          'Failed to send verification email. Please try again.',
-        );
+        console.error('Failed to send OTP email:', error);
+        // Don't throw error to avoid exposing email service issues
+        // User can still request OTP resend
+        return { message: 'Account created. Please request OTP if not received.' };
       }
     });
   }
@@ -178,7 +185,14 @@ export class AuthService {
       data: { verificationOtp: newOtp, otpExpires },
     });
 
-    await this.mailService.sendOtp(email, newOtp);
+    try {
+      await this.mailService.sendOtp(email, newOtp);
+    } catch (error) {
+      console.error('Failed to resend OTP:', error);
+      throw new InternalServerErrorException(
+        'Failed to send OTP. Please try again later.',
+      );
+    }
     return { message: 'New OTP sent to your email' };
   }
 
@@ -210,7 +224,12 @@ export class AuthService {
       user.id,
     );
 
-    await this.mailService.sendWelcome(email, user.fullName);
+    try {
+      await this.mailService.sendWelcome(email, user.fullName);
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+      // Don't block login due to welcome email failure
+    }
     return this.generateTokens(user);
   }
 
@@ -243,13 +262,39 @@ export class AuthService {
           passwordHash: '',
         },
       });
-      await this.mailService.sendWelcome(email, user.fullName);
+      try {
+        await this.mailService.sendWelcome(email, user.fullName);
+      } catch (error) {
+        console.error('Failed to send welcome email after Google auth:', error);
+        // Don't block Google auth due to welcome email failure
+      }
       return this.generateTokens(user);
     } catch (error) {
       console.error('Prisma/Google Error:', error);
       throw new UnauthorizedException('Google authentication failed');
     }
   }
+  async getUserById(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        avatarUrl: true,
+        role: true,
+        organizationId: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
   private async generateTokens(user: any) {
     const payload = {
       sub: user.id,
