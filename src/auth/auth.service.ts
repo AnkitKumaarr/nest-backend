@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { GoogleService } from './google.service';
@@ -94,19 +95,23 @@ export class AuthService {
     return { message: 'Password reset link sent to your email' };
   }
 
-  async resetPassword(token: string, newPass: string) {
-    if (!newPass) {
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, newPassword } = resetPasswordDto;
+
+    if (!newPassword) {
       throw new BadRequestException('New password is required');
     }
+
     const user = await this.prisma.user.findFirst({
       where: { resetToken: token },
     });
 
+    // TODO: Uncomment token expiry check after testing
     if (!user || !user.resetTokenExp || user.resetTokenExp < new Date()) {
       throw new BadRequestException('Token invalid or expired');
     }
 
-    const hashedPassword = await bcrypt.hash(newPass, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -167,7 +172,9 @@ export class AuthService {
         console.error('Failed to send OTP email:', error);
         // Don't throw error to avoid exposing email service issues
         // User can still request OTP resend
-        return { message: 'Account created. Please request OTP if not received.' };
+        return {
+          message: 'Account created. Please request OTP if not received.',
+        };
       }
     });
   }

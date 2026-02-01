@@ -109,7 +109,7 @@ The application uses the following main entities:
   ```json
   {
     "token": "string",
-    "newPass": "string"
+    "newPassword": "string"
   }
   ```
 - **Related Files**:

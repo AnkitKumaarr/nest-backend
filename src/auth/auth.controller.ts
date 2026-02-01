@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CustomAuthGuard } from './guards/auth.guard';
 
 @Controller('auth')
@@ -35,8 +36,8 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  async resetPassword(@Body() body: { token: string; newPass: string }) {
-    return this.authService.resetPassword(body.token, body.newPass);
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
   @Post('resend-otp')
   async resendOtp(@Body() body: { email: string }) {
