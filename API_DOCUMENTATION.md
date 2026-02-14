@@ -71,6 +71,22 @@ The application uses the following main entities:
     "otp": "string"
   }
   ```
+- **Response**:
+  ```json
+  {
+    "access_token": "string",
+    "refresh_token": "string",
+    "expires_in": 1800,
+    "user": {
+      "id": "string",
+      "fullName": "string",
+      "email": "string",
+      "avatarUrl": "string",
+      "role": "string",
+      "orgId": "string"
+    }
+  }
+  ```
 - **Related Files**:
   - `@/e:\New Projects\nest-backend\src\auth\auth.controller.ts:22-25`
 
@@ -82,7 +98,23 @@ The application uses the following main entities:
   ```json
   {
     "email": "string",
-    "pass": "string"
+    "password": "string"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "access_token": "string",
+    "refresh_token": "string",
+    "expires_in": 1800,
+    "user": {
+      "id": "string",
+      "fullName": "string",
+      "email": "string",
+      "avatarUrl": "string",
+      "role": "string",
+      "orgId": "string"
+    }
   }
   ```
 - **Related Files**:
@@ -138,8 +170,68 @@ The application uses the following main entities:
     "idToken": "string"
   }
   ```
+- **Response**:
+  ```json
+  {
+    "access_token": "string",
+    "refresh_token": "string", 
+    "expires_in": 900,
+    "user": {
+      "id": "string",
+      "fullName": "string",
+      "email": "string",
+      "avatarUrl": "string",
+      "role": "string",
+      "orgId": "string"
+    }
+  }
+  ```
 - **Related Files**:
   - `@/e:\New Projects\nest-backend\src\auth\auth.controller.ts:45-48`
+
+#### POST /auth/refresh-token
+- **Method**: POST
+- **Description**: Generate new access token using refresh token
+- **Authentication**: None
+- **Payload**:
+  ```json
+  {
+    "refresh_token": "string",
+    "current_access_token": "string (optional)"
+  }
+  ```
+- **Smart Refresh Logic**: 
+  - If `current_access_token` is provided, API checks if it expires within 5 minutes
+  - If token expires within 5 minutes or is already expired, new tokens are issued
+  - If token is still valid for more than 5 minutes, no refresh is performed
+- **Response** (when tokens are refreshed):
+  ```json
+  {
+    "access_token": "string",
+    "refresh_token": "string",
+    "expires_in": 1800,
+    "user": {
+      "id": "string",
+      "fullName": "string", 
+      "email": "string",
+      "avatarUrl": "string",
+      "role": "string",
+      "orgId": "string"
+    }
+  }
+  ```
+- **Response** (when no refresh needed):
+  ```json
+  {
+    "message": "Token is still valid, no refresh needed",
+    "expires_in": 1800
+  }
+  ```
+- **Error Responses**:
+  - `401 Unauthorized`: Invalid or expired refresh token
+- **Related Files**:
+  - `@/e:\New Projects\nest-backend\src\auth\auth.controller.ts:52-55`
+  - `@/e:\New Projects\nest-backend\src\auth\dto\refresh-token.dto.ts`
 
 #### GET /auth/me
 - **Method**: GET
@@ -226,10 +318,12 @@ All task endpoints require authentication (CustomAuthGuard).
   {
     "title": "string",
     "description": "string (optional)",
-    "status": "todo | in-progress | completed",
-    "priority": "low | medium | high",
-    "dueDate": "string (ISO date)",
-    "assignedToId": "string (optional, MongoDB ObjectId)"
+    "date": "string (optional, UTC zone)",
+    "dueDate": "string (optional, UTC format)",
+    "priority": "low | medium | high (optional)",
+    "status": "todo | in-progress | completed (optional)",
+    "blocker": "string (optional, e.g., 'Waiting for approval')",
+    "assignedTo": "string (optional, MongoDB ObjectId)"
   }
   ```
 - **Related Files**:
@@ -258,23 +352,40 @@ All task endpoints require authentication (CustomAuthGuard).
 - **Related Files**:
   - `@/e:\New Projects\nest-backend\src\tasks\tasks.controller.ts:26-29`
 
-#### PUT /api/tasks/:id
-- **Method**: PUT
+#### POST /api/tasks/update
+- **Method**: POST
 - **Description**: Update task by ID
 - **Authentication**: Required (CustomAuthGuard)
-- **Payload**: Task update object
-- **Parameters**: `id` (string) - Task ID
+- **Payload**: taskId is required along with any fields to update:
+  ```json
+  {
+    "taskId": "string (required, MongoDB ObjectId)",
+    "title": "string (optional)",
+    "description": "string (optional)",
+    "date": "string (optional, UTC zone)",
+    "dueDate": "string (optional, UTC format)",
+    "priority": "low | medium | high (optional)",
+    "status": "todo | in-progress | completed (optional)",
+    "blocker": "string (optional, e.g., 'Waiting for approval')",
+    "assignedTo": "string (optional, MongoDB ObjectId)"
+  }
+  ```
 - **Related Files**:
-  - `@/e:\New Projects\nest-backend\src\tasks\tasks.controller.ts:31-34`
+  - `@/e:\New Projects\nest-backend\src\tasks\tasks.controller.ts:32-35`
+  - `@/e:\New Projects\nest-backend\src\tasks\dto\update-task.dto.ts`
 
-#### DELETE /api/tasks/:id
-- **Method**: DELETE
+#### POST /api/tasks/delete
+- **Method**: POST
 - **Description**: Delete task by ID
 - **Authentication**: Required (CustomAuthGuard)
-- **Payload**: None
-- **Parameters**: `id` (string) - Task ID
+- **Payload**:
+  ```json
+  {
+    "taskId": "string (required, MongoDB ObjectId)"
+  }
+  ```
 - **Related Files**:
-  - `@/e:\New Projects\nest-backend\src\tasks\tasks.controller.ts:36-39`
+  - `@/e:\New Projects\nest-backend\src\tasks\tasks.controller.ts:37-40`
 
 ---
 
@@ -464,6 +575,138 @@ All activity log endpoints require authentication (CustomAuthGuard and RolesGuar
 ---
 
 ## Authentication & Authorization
+
+### JWT Token Management
+
+The application uses a dual-token authentication system for enhanced security:
+
+#### Token Types
+
+1. **Access Token**
+   - **Purpose**: Used for API authentication
+   - **Expiry**: 30 minutes (balanced security and user experience)
+   - **Usage**: Include in Authorization header: `Bearer <access_token>`
+   - **Refresh**: Use refresh token to get new access token
+
+2. **Refresh Token**
+   - **Purpose**: Used to obtain new access tokens
+   - **Expiry**: 7 days (longer-lived)
+   - **Usage**: Send to `/auth/refresh-token` endpoint
+   - **Security**: Should be stored securely (httpOnly cookies recommended)
+
+#### Token Refresh Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    
+    Client->>API: Login with credentials
+    API-->>Client: access_token + refresh_token
+    
+    Note over Client: Use access_token for API calls
+    
+    Client->>API: API call with expired access_token
+    API-->>Client: 401 Unauthorized
+    
+    Client->>API: POST /auth/refresh-token
+    API-->>Client: New access_token + refresh_token
+    
+    Client->>API: Retry API call with new access_token
+    API-->>Client: Success
+```
+
+#### Frontend Implementation Example
+
+```javascript
+// Store tokens securely
+localStorage.setItem('access_token', response.access_token);
+localStorage.setItem('refresh_token', response.refresh_token);
+
+// Smart refresh function that checks token expiry
+async function refreshTokenIfNeeded() {
+  const accessToken = localStorage.getItem('access_token');
+  const refreshToken = localStorage.getItem('refresh_token');
+  
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  try {
+    const response = await axios.post('/auth/refresh-token', {
+      refresh_token: refreshToken,
+      current_access_token: accessToken // Optional: for smart refresh
+    });
+    
+    if (response.data.access_token) {
+      // Update stored tokens with new ones
+      localStorage.setItem('access_token', response.data.access_token);
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+      return response.data.access_token;
+    } else {
+      // Token is still valid, no refresh needed
+      return accessToken;
+    }
+  } catch (error) {
+    // Refresh failed, clear tokens and redirect to login
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    window.location.href = '/login';
+    throw error;
+  }
+}
+
+// API interceptor for automatic token refresh
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      try {
+        const newAccessToken = await refreshTokenIfNeeded();
+        
+        // Retry original request with new token
+        error.config.headers.Authorization = `Bearer ${newAccessToken}`;
+        return axios.request(error.config);
+      } catch (refreshError) {
+        // Refresh failed, let the error propagate
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Proactive refresh: Check token before making important requests
+async function makeApiCallWithRefresh(config) {
+  const accessToken = localStorage.getItem('access_token');
+  
+  // Optional: Decode token to check expiry (requires jwt-decode library)
+  try {
+    const decoded = jwt_decode(accessToken);
+    const timeUntilExpiry = decoded.exp - Math.floor(Date.now() / 1000);
+    const fiveMinutesInSeconds = 5 * 60;
+    
+    // If token expires within 5 minutes, refresh it first
+    if (timeUntilExpiry <= fiveMinutesInSeconds) {
+      await refreshTokenIfNeeded();
+    }
+  } catch (decodeError) {
+    // If we can't decode, try refresh anyway
+    await refreshTokenIfNeeded();
+  }
+  
+  // Make the API call with current token
+  return axios(config);
+}
+```
+
+#### Security Best Practices
+
+1. **Access Token Storage**: Store in memory or secure storage (avoid localStorage for production)
+2. **Refresh Token Storage**: Use httpOnly cookies or secure storage
+3. **Token Rotation**: New refresh token issued with each refresh (implemented)
+4. **Automatic Refresh**: Implement interceptors to handle token refresh automatically
+5. **Logout**: Clear both tokens and invalidate sessions
 
 ### Authentication Guards
 

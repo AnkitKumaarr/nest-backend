@@ -58,17 +58,17 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       
       // 3. Attach metadata to the client object for easy access later
       client.data.userId = payload.sub;
-      client.data.orgId = payload.organizationId; // Match your Prisma field name
+      client.data.orgId = payload.companyId; // Match your Prisma field name
 
       // 4. Join Private Room (User ID) and Org Room
       // This eliminates the need for a manual userSockets Map
       await client.join(`user_${payload.sub}`);
       
-      if (payload.organizationId) {
-        await client.join(`org_${payload.organizationId}`);
+      if (payload.companyId) {
+        await client.join(`org_${payload.companyId}`);
       }
 
-      this.logger.log(`User connected: ${payload.sub} in Org: ${payload.organizationId}`);
+      this.logger.log(`User connected: ${payload.sub} in Org: ${payload.companyId}`);
     } catch (e) {
       this.logger.error('Connection unauthorized');
       client.disconnect();

@@ -39,7 +39,7 @@ export class OrganizationsService {
       await tx.user.update({
         where: { id: userId },
         data: {
-          organizationId: org.id,
+          companyId: org.id,
           role: 'admin', // The creator becomes the admin
         },
       });

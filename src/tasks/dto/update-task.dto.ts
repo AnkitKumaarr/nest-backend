@@ -1,21 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsMongoId } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsMongoId, IsNotEmpty } from 'class-validator';
+import { TaskStatus, TaskPriority } from './create-task.dto';
 
-export enum TaskStatus {
-  TODO = 'todo',
-  IN_PROGRESS = 'inProgress',
-  COMPLETED = 'completed'
-}
-
-export enum TaskPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high'
-}
-
-export class CreateTaskDto {
+export class UpdateTaskDto {
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  @IsOptional()
+  title?: string;
 
   @IsString()
   @IsOptional()
@@ -45,7 +34,7 @@ export class CreateTaskDto {
   @IsMongoId()
   assignedToId?: string;
 
-  @IsOptional()
   @IsMongoId()
-  groupId?: string;
+  @IsNotEmpty()
+  taskId: string; // Required: Task ID to update
 }

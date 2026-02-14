@@ -20,13 +20,13 @@ export class ActivityLogsService {
   //     data: { userId, action, entity, entityId, details },
   //     include: {
   //       user: {
-  //         select: { fullName: true, organizationId: true },
+  //         select: { fullName: true, companyId: true },
   //       },
   //     },
   //   });
-  //   if (log.user?.organizationId) {
+  //   if (log.user?.companyId) {
   //     this.eventsGateway.sendToOrg(
-  //       log.user.organizationId,
+  //       log.user.companyId,
   //       'NEW_ACTIVITY_LOG',
   //       log,
   //     );
@@ -47,14 +47,14 @@ export class ActivityLogsService {
       data: { userId, action, entity, entityId, details },
       include: {
         user: {
-          select: { fullName: true, organizationId: true },
+          select: { fullName: true, companyId: true },
         },
       },
     });
 
-    if (log.user?.organizationId) {
+    if (log.user?.companyId) {
       this.eventsGateway.sendToOrg(
-        log.user.organizationId,
+        log.user.companyId,
         'NEW_ACTIVITY_LOG',
         log,
       );

@@ -10,6 +10,7 @@ import { MailService } from 'src/mail/mail.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { GoogleService } from './google.service';
@@ -133,6 +134,13 @@ export class AuthService {
     return { message: 'Password updated successfully' };
   }
 
+  /**
+   * Generate fullName from firstName and lastName
+   */
+  private generateFullName(firstName: string, lastName?: string): string {
+    return lastName ? `${firstName} ${lastName}` : firstName;
+  }
+
   async signup(dto: SignupDto) {
     const userExists = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -147,7 +155,13 @@ export class AuthService {
     return await this.prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          ...userFields,
+          email: userFields.email,
+          firstName: userFields.firstName,
+          lastName: userFields.lastName || '',
+          fullName: this.generateFullName(
+            userFields.firstName,
+            userFields.lastName,
+          ),
           passwordHash: hashedPassword,
           verificationOtp: otp,
           otpExpires,
@@ -232,7 +246,10 @@ export class AuthService {
     );
 
     try {
-      await this.mailService.sendWelcome(email, user.fullName);
+      await this.mailService.sendWelcome(
+        email,
+        user.fullName || user.firstName,
+      );
     } catch (error) {
       console.error('Failed to send welcome email:', error);
       // Don't block login due to welcome email failure
@@ -258,19 +275,32 @@ export class AuthService {
         where: { email: email },
         update: {
           avatarUrl: payload.picture || null,
-          fullName: payload.given_name || 'User',
+          firstName: payload.given_name || 'User',
+          lastName: payload.family_name || null,
+          fullName: this.generateFullName(
+            payload.given_name || 'User',
+            payload.family_name,
+          ),
           isEmailVerified: true,
         },
         create: {
           email: email,
-          fullName: payload.given_name || 'User',
+          firstName: payload.given_name || 'User',
+          lastName: payload.family_name || null,
+          fullName: this.generateFullName(
+            payload.given_name || 'User',
+            payload.family_name,
+          ),
           avatarUrl: payload.picture || '',
           isEmailVerified: true,
           passwordHash: '',
         },
       });
       try {
-        await this.mailService.sendWelcome(email, user.fullName);
+        await this.mailService.sendWelcome(
+          email,
+          user.fullName || user.firstName,
+        );
       } catch (error) {
         console.error('Failed to send welcome email after Google auth:', error);
         // Don't block Google auth due to welcome email failure
@@ -290,7 +320,7 @@ export class AuthService {
         fullName: true,
         avatarUrl: true,
         role: true,
-        organizationId: true,
+        companyId: true,
         isEmailVerified: true,
       },
     });
@@ -302,22 +332,117 @@ export class AuthService {
     return user;
   }
 
+  async refreshToken(refreshTokenDto: RefreshTokenDto) {
+    try {
+      // Verify the refresh token
+      const payload = await this.jwtService.verifyAsync(
+        refreshTokenDto.refresh_token,
+      );
+
+      // Get user from database to ensure they still exist and are active
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          avatarUrl: true,
+          role: true,
+          companyId: true,
+          isEmailVerified: true,
+        },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      if (!user.isEmailVerified) {
+        throw new UnauthorizedException('Email not verified');
+      }
+
+      let shouldRefresh = true;
+
+      // Check if current access token is expiring within 5 minutes
+      if (refreshTokenDto.current_access_token) {
+        try {
+          const currentPayload = this.jwtService.decode(
+            refreshTokenDto.current_access_token,
+          ) as any;
+          if (currentPayload && currentPayload.exp) {
+            const currentTime = Math.floor(Date.now() / 1000);
+            const timeUntilExpiry = currentPayload.exp - currentTime;
+            const fiveMinutesInSeconds = 5 * 60;
+
+            // Only refresh if token is expiring within 5 minutes or already expired
+            shouldRefresh = timeUntilExpiry <= fiveMinutesInSeconds;
+          }
+        } catch (decodeError) {
+          // If we can't decode the current token, assume we should refresh
+          shouldRefresh = true;
+        }
+      }
+
+      if (shouldRefresh) {
+        // Log the token refresh activity
+        await this.activityLogs.log(
+          this.prisma,
+          user.id,
+          'TOKEN_REFRESHED',
+          'Auth',
+          user.id,
+          'Access token refreshed using refresh token',
+        );
+
+        // Generate new tokens
+        return this.generateTokens(user);
+      } else {
+        // Token is still valid for more than 5 minutes
+        return {
+          message: 'Token is still valid, no refresh needed',
+          expires_in: 1800, // 30 minutes in seconds
+        };
+      }
+    } catch (error) {
+      if (
+        error.name === 'JsonWebTokenError' ||
+        error.name === 'TokenExpiredError'
+      ) {
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
+      throw error;
+    }
+  }
+
   private async generateTokens(user: any) {
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
-      orgId: user.organizationId,
+      orgId: user.companyId,
     };
+
+    // Generate access token with 30 minutes expiry
+    const access_token = await this.jwtService.signAsync(payload, {
+      expiresIn: '30d',
+    });
+
+    // Generate refresh token with longer expiry (7 days)
+    const refresh_token = await this.jwtService.signAsync(payload, {
+      expiresIn: '7d',
+    });
+
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      access_token,
+      refresh_token,
+      expires_in: 2592000, // 30 days in seconds
       user: {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
         avatarUrl: user.avatarUrl,
         role: user.role,
-        orgId: user.organizationId,
+        orgId: user.companyId,
       },
     };
   }

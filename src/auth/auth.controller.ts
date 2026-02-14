@@ -9,6 +9,7 @@ import {
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CustomAuthGuard } from './guards/auth.guard';
 
 @Controller('auth')
@@ -46,6 +47,11 @@ export class AuthController {
   @Post('google')
   async googleLogin(@Body() body: { idToken: string }) {
     return this.authService.googleAuth(body);
+  }
+
+  @Post('refresh-token')
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshToken(refreshTokenDto);
   }
 
   // Example of a Protected Route

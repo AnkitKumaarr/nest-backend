@@ -19,14 +19,13 @@ model User {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   email        String   @unique
   passwordHash String
-  fullName    String
+  fullName     String?
+  firstName    String
+  lastName     String?
   avatarUrl    String?
   role         String   @default("user")
   department   String?
   status       String   @default("active")
-  tasksAssigned Task[]  @relation("assignedTasks")
-  tasksCreated  Task[]  @relation("createdTasks")
-  meetings      Meeting[]
   activityLogs ActivityLog[]
   meetingParticipants MeetingParticipant[]
   notifications Notification[]
@@ -36,28 +35,27 @@ model User {
   resetToken      String?  
   resetTokenExp   DateTime?
   googleId        String? 
-  organizationId String?       @db.ObjectId
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  companyId       String?       @db.ObjectId
+  company         Organization? @relation(fields: [companyId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
 model Task {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  taskNumber  String   @unique
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId  
   title       String
   description String?
-  status      String
-  priority    String
-  dueDate     DateTime
+  date        String? // Store as ISO string
+  dueDate     String? // Store as ISO string
+  createdDay  String? // Day name like "Monday", "Tuesday", etc.
+  status      String   @default("pending")
+  priority    String   @default("medium")
+  blocker     String?  // e.g., "Waiting for approval"
+  groupId     String? @db.ObjectId // Can be same across multiple tasks
 
-  assignedToId String? @db.ObjectId
-  createdById  String  @db.ObjectId
-
-  assignedTo User? @relation("assignedTasks", fields: [assignedToId], references: [id])
-  createdBy  User  @relation("createdTasks", fields: [createdById], references: [id])
-  organizationId String @db.ObjectId
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  assignedTo   String? @db.ObjectId
+  createdBy    String  @db.ObjectId
+  companyId    String? @db.ObjectId
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,10 +71,8 @@ model Meeting {
   status      String
   isRecurring Boolean  @default(false)
 
-  createdById String @db.ObjectId
-  createdBy   User   @relation(fields: [createdById], references: [id])
-  organizationId String @db.ObjectId
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdBy String @db.ObjectId
+  companyId String @db.ObjectId
 
   participants MeetingParticipant[]
 
@@ -129,7 +125,5 @@ model Organization {
   
   // Relations
   members     User[]
-  tasks       Task[]
-  meetings    Meeting[]
 }
 

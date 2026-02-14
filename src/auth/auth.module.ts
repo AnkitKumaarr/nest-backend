@@ -11,7 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1d' }, // SaaS standard: 1 day expiry
+      signOptions: { expiresIn: '15m' }, // Short expiry for access tokens
     }),
     MailModule,
   ],

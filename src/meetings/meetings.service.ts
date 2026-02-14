@@ -27,7 +27,7 @@ export class MeetingsService {
 
     const conflict = await this.prisma.meeting.findFirst({
       where: {
-        createdById: userId,
+        createdBy: userId,
         OR: [
           { startTime: { lte: start }, endTime: { gt: start } },
           { startTime: { lt: end }, endTime: { gte: end } },
@@ -47,8 +47,8 @@ export class MeetingsService {
         ...dto,
         startTime: start,
         endTime: end,
-        organizationId: orgId,
-        createdById: userId,
+        companyId: orgId,
+        createdBy: userId,
       },
     });
 
@@ -69,10 +69,9 @@ export class MeetingsService {
   async findAll(userId: string) {
     return this.prisma.meeting.findMany({
       where: {
-        OR: [{ createdById: userId }, { participants: { some: { userId } } }],
+        OR: [{ createdBy: userId }, { participants: { some: { userId } } }],
       },
       include: {
-        createdBy: { select: { fullName: true, email: true } },
         participants: true,
       },
       orderBy: { startTime: 'asc' },
@@ -82,7 +81,7 @@ export class MeetingsService {
   async findOne(id: string) {
     const meeting = await this.prisma.meeting.findUnique({
       where: { id },
-      include: { participants: { include: { user: true } }, createdBy: true },
+      include: { participants: { include: { user: true } } },
     });
     if (!meeting) throw new NotFoundException('Meeting not found');
     return meeting;
@@ -90,7 +89,7 @@ export class MeetingsService {
 
   async update(id: string, dto: any, userId: string) {
     const meeting = await this.prisma.meeting.findUnique({ where: { id } });
-    if (!meeting || meeting.createdById !== userId) {
+    if (!meeting || meeting.createdBy !== userId) {
       throw new UnauthorizedException(
         'Only the creator can update the meeting',
       );
@@ -118,7 +117,7 @@ export class MeetingsService {
 
     // 3. Broadcast Update
     this.eventsGateway.sendToOrg(
-      updatedMeeting.organizationId,
+      updatedMeeting.companyId,
       'MEETING_UPDATED',
       updatedMeeting,
     );
@@ -128,7 +127,7 @@ export class MeetingsService {
 
   async remove(id: string, userId: string) {
     const meeting = await this.prisma.meeting.findUnique({ where: { id } });
-    if (!meeting || meeting.createdById !== userId) {
+    if (!meeting || meeting.createdBy !== userId) {
       throw new UnauthorizedException(
         'Only the creator can delete the meeting',
       );
@@ -177,7 +176,7 @@ export class MeetingsService {
       `Joined meeting: ${meeting.title}`,
     );
     // 4. Notify the Creator: "Someone just joined your meeting"
-    this.eventsGateway.sendToUser(meeting.createdById, 'PARTICIPANT_JOINED', {
+    this.eventsGateway.sendToUser(meeting.createdBy, 'PARTICIPANT_JOINED', {
       meetingId,
       userId,
       message: `Someone joined ${meeting.title}`,

@@ -1,16 +1,32 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  Delete,
+} from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('api/tasks')
-@UseGuards(CustomAuthGuard) 
+@UseGuards(CustomAuthGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Post()
   create(@Body() dto: CreateTaskDto, @Request() req) {
     return this.tasksService.create(dto, req.user.sub, req.orgId);
+  }
+
+  @Get()
+  getMyTasks(@Request() req) {
+    return this.tasksService.getTasks(req.user.sub);
   }
 
   @Get()
@@ -28,13 +44,13 @@ export class TasksController {
     return this.tasksService.findOne(id);
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() dto: any, @Request() req) {
-    return this.tasksService.update(id, dto, req.user.sub);
+  @Post('update')
+  update(@Body() dto: UpdateTaskDto, @Request() req) {
+    return this.tasksService.update(dto.taskId, dto, req.user.sub);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string, @Request() req) {
-    return this.tasksService.remove(id, req.user.sub);
+  @Delete('delete/:taskId')
+  remove(@Param('taskId') taskId: string, @Request() req) {
+    return this.tasksService.remove(taskId, req.user.sub);
   }
 }

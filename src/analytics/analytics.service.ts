@@ -11,7 +11,7 @@ export class AnalyticsService {
 
   // Helper to determine the database filter
   private getFilter(userId: string, role: string, from?: string, to?: string) {
-    const baseFilter: any = role === 'admin' ? {} : { createdById: userId };
+    const baseFilter: any = role === 'admin' ? {} : { createdBy: userId };
 
     // If dates are provided, add the date range filter
     if (from || to) {
