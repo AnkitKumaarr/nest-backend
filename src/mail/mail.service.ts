@@ -275,6 +275,54 @@ export class MailService {
     await this.sendViaNodemailer(email, `🎉 Welcome to ${process.env.APP_NAME || 'Prody'}!`, html);
   }
 
+  async sendTempPassword(email: string, firstName: string, tempPassword: string) {
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>Your Temporary Password</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+          .header { background: rgba(255,255,255,0.1); padding: 30px; text-align: center; color: white; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+          .content { background: white; padding: 40px; text-align: center; }
+          .password-box { background: #f8f9fa; border: 2px dashed #6c63ff; border-radius: 8px; padding: 20px; margin: 30px 0; }
+          .password { font-size: 24px; font-weight: bold; color: #6c63ff; letter-spacing: 4px; font-family: 'Courier New', monospace; }
+          .expiry { color: #6c757d; font-size: 14px; margin-top: 10px; }
+          .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; text-align: left; border-radius: 4px; }
+          .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div style="font-size:24px;font-weight:bold;margin-bottom:10px;">🔑 ${process.env.APP_NAME || 'TaskForge'}</div>
+            <h1>Welcome to the Team!</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${firstName},</h2>
+            <p>Your account has been created. Use the temporary password below to sign in:</p>
+            <div class="password-box">
+              <p class="password">${tempPassword}</p>
+              <p class="expiry">⏰ Expires in 7 days</p>
+            </div>
+            <div class="warning">
+              <strong>⚠️ Important:</strong> You will be required to change this password on first login.
+            </div>
+            <p style="color:#6c757d;font-size:14px;">If you did not expect this email, please contact your Company Administrator.</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 ${process.env.APP_NAME || 'TaskForge'}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    await this.sendViaNodemailer(email, `🔑 Your Temporary Password - ${process.env.APP_NAME || 'TaskForge'}`, html);
+  }
+
   async sendPasswordReset(email: string, token: string) {
     const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     const html = `

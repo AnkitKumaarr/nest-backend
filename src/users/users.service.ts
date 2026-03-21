@@ -46,7 +46,7 @@ export class UsersService {
       
       const firstName = updateUserDto.firstName || currentUser.firstName;
       const lastName = updateUserDto.lastName !== undefined ? updateUserDto.lastName : currentUser.lastName;
-      updateData.fullName = this.generateFullName(firstName, lastName || undefined);
+      updateData.fullName = this.generateFullName(firstName || '', lastName || undefined);
     }
     
     return this.prisma.user.update({

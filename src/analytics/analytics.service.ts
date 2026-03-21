@@ -9,11 +9,21 @@ export class AnalyticsService {
     private activityLogs: ActivityLogsService, // Added to provide recent activity feed
   ) {}
 
-  // Helper to determine the database filter
-  private getFilter(userId: string, role: string, from?: string, to?: string) {
+  // Helper to determine the database filter for meetings (uses createdBy)
+  private getMeetingFilter(userId: string, role: string, from?: string, to?: string) {
     const baseFilter: any = role === 'admin' ? {} : { createdBy: userId };
+    if (from || to) {
+      baseFilter.createdAt = {
+        ...(from && { gte: new Date(from) }),
+        ...(to && { lte: new Date(to) }),
+      };
+    }
+    return baseFilter;
+  }
 
-    // If dates are provided, add the date range filter
+  // Helper to determine the database filter for weekTasks (uses userId)
+  private getWeekTaskFilter(userId: string, role: string, from?: string, to?: string) {
+    const baseFilter: any = role === 'admin' ? {} : { userId };
     if (from || to) {
       baseFilter.createdAt = {
         ...(from && { gte: new Date(from) }),
@@ -29,7 +39,8 @@ export class AnalyticsService {
     from?: string,
     to?: string,
   ) {
-    const filter = this.getFilter(userId, role, from, to);
+    const weekTaskFilter = this.getWeekTaskFilter(userId, role, from, to);
+    const meetingFilter = this.getMeetingFilter(userId, role, from, to);
 
     const userDateFilter =
       role === 'admin'
@@ -40,17 +51,17 @@ export class AnalyticsService {
         : {};
 
     const [taskCount, meetingCount, userCount, recentLogs] = await Promise.all([
-      this.prisma.task.count({ where: filter }),
-      this.prisma.meeting.count({ where: filter }),
+      this.prisma.weekTask.count({ where: weekTaskFilter }),
+      this.prisma.meeting.count({ where: meetingFilter }),
       role === 'admin'
         ? this.prisma.user.count({ where: userDateFilter })
         : Promise.resolve(0),
-      this.activityLogs.findAll(userId, role), // Fetch logs for the "Recent Activity" feed
+      this.activityLogs.findAll(userId, role),
     ]);
 
-    const taskStats = await this.prisma.task.groupBy({
+    const taskStats = await this.prisma.weekTask.groupBy({
       by: ['status'],
-      where: filter,
+      where: weekTaskFilter,
       _count: { id: true },
     });
 
@@ -71,20 +82,12 @@ export class AnalyticsService {
   }
 
   async getTaskAnalytics(userId: string, role: string, from?: string, to?: string) {
-    const filter = this.getFilter(userId, role, from, to); // Added from/to support
+    const filter = this.getWeekTaskFilter(userId, role, from, to);
 
-    const priorityStats = await this.prisma.task.groupBy({
+    const priorityStats = await this.prisma.weekTask.groupBy({
       by: ['priority'],
       where: filter,
       _count: { id: true },
-    });
-
-    const overdueCount = await this.prisma.task.count({
-      where: {
-        ...filter,
-        status: { not: 'completed' },
-        dueDate: { lt: new Date() },
-      },
     });
 
     return {
@@ -92,12 +95,11 @@ export class AnalyticsService {
         priority: p.priority,
         count: p._count.id,
       })),
-      overdueTasks: overdueCount,
     };
   }
 
   async getMeetingAnalytics(userId: string, role: string, from?: string, to?: string) {
-    const filter = this.getFilter(userId, role, from, to); // Added from/to support
+    const filter = this.getMeetingFilter(userId, role, from, to);
 
     const meetings = await this.prisma.meeting.findMany({
       where: filter,

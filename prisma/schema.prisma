@@ -20,7 +20,7 @@ model User {
   email        String   @unique
   passwordHash String
   fullName     String?
-  firstName    String
+  firstName    String?
   lastName     String?
   avatarUrl    String?
   role         String   @default("user")
@@ -39,26 +39,6 @@ model User {
   company         Organization? @relation(fields: [companyId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-}
-
-model Task {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId  
-  title       String
-  description String?
-  date        String? // Store as ISO string
-  dueDate     String? // Store as ISO string
-  createdDay  String? // Day name like "Monday", "Tuesday", etc.
-  status      String   @default("pending")
-  priority    String   @default("medium")
-  blocker     String?  // e.g., "Waiting for approval"
-  groupId     String? @db.ObjectId // Can be same across multiple tasks
-
-  assignedTo   String? @db.ObjectId
-  createdBy    String  @db.ObjectId
-  companyId    String? @db.ObjectId
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Meeting {
@@ -122,8 +102,168 @@ model Organization {
   name        String
   slug        String   @unique // e.g., "acme-corp"
   createdAt   DateTime @default(now())
-  
+
   // Relations
   members     User[]
+}
+
+// ─── TaskForge Modules ──────────────────────────────────────────────────────
+
+model Company {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  adminId      String        @db.ObjectId
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  companyUsers CompanyUser[]
+  roles        Role[]
+  teams        Team[]
+  projectTasks ProjectTask[]
+  weekTasks    WeekTask[]
+}
+
+model CompanyUser {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  email              String    @unique
+  firstName          String
+  lastName           String
+  companyId          String    @db.ObjectId
+  company            Company   @relation(fields: [companyId], references: [id])
+  roleId             String    @db.ObjectId
+  role               Role      @relation(fields: [roleId], references: [id])
+  isActive           Boolean   @default(true)
+  isDeleted          Boolean   @default(false)
+  tempPassword       String?
+  tempPasswordExpiry DateTime?
+  hasChangedPassword Boolean   @default(false)
+  password           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Role {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  permissions  String[]
+  companyId    String        @db.ObjectId
+  company      Company       @relation(fields: [companyId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  companyUsers CompanyUser[]
+}
+
+model Team {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  companyId    String       @db.ObjectId
+  company      Company      @relation(fields: [companyId], references: [id])
+  createdBy    String       @db.ObjectId
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  teamMembers  TeamMember[]
+  projectTasks ProjectTask[]
+}
+
+model TeamMember {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId     String   @db.ObjectId
+  team       Team     @relation(fields: [teamId], references: [id])
+  userId     String   @db.ObjectId
+  firstName  String
+  lastName   String
+  roleInTeam String   // "Technical Leader" or "Member"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ProjectTask {
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  creatorId   String               @db.ObjectId
+  inchargeId  String?              @db.ObjectId
+  teamId      String               @db.ObjectId
+  team        Team                 @relation(fields: [teamId], references: [id])
+  companyId   String               @db.ObjectId
+  company     Company              @relation(fields: [companyId], references: [id])
+  priority    String               @default("MEDIUM")
+  status      String               @default("TODO")
+  logTime     Float?
+  taskContent Json?
+  dueDate     DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  comments    ProjectTaskComment[]
+}
+
+model ProjectTaskComment {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String      @db.ObjectId
+  task      ProjectTask @relation(fields: [taskId], references: [id])
+  userId    String      @db.ObjectId
+  username  String
+  comment   String
+  createdAt DateTime    @default(now())
+}
+
+type WeekDay {
+  dayId String   @db.ObjectId
+  name  String
+  date  DateTime?
+}
+
+type WeekMonth {
+  monthId String @db.ObjectId
+  name    String
+  number  Int
+}
+
+model Week {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  label      String     // "Week 1", "Week 2", etc.
+  weekNumber Int
+  month      WeekMonth
+  year       Int
+  startDate  DateTime
+  endDate    DateTime
+  days       WeekDay[]
+  userId     String     @db.ObjectId
+  companyId  String?    @db.ObjectId
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  weekTasks  WeekTask[]
+}
+
+type DayDetails {
+  dayName     String
+  monthName   String
+  monthNumber Int
+  year        Int
+  date        DateTime?
+}
+
+model WeekTask {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  weekId     String      @db.ObjectId
+  week       Week        @relation(fields: [weekId], references: [id])
+  title      String?
+  content    String?
+  startDate  String?
+  dayId      String?     @db.ObjectId
+  dayDetails DayDetails?
+  dueDate    String?
+  priority   String   @default("medium")
+  status     String   @default("todo")
+  blocker    String?
+  assignedTo String?
+  userId     String   @db.ObjectId
+  companyId  String?  @db.ObjectId
+  company    Company? @relation(fields: [companyId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 

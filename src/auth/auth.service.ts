@@ -4,7 +4,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, PrismaTxClient } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { MailService } from 'src/mail/mail.service';
 import { JwtService } from '@nestjs/jwt';
@@ -152,7 +152,7 @@ export class AuthService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-    return await this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx: PrismaTxClient) => {
       const newUser = await tx.user.create({
         data: {
           email: userFields.email,
@@ -248,7 +248,7 @@ export class AuthService {
     try {
       await this.mailService.sendWelcome(
         email,
-        user.fullName || user.firstName,
+        user.fullName || user.firstName || '',
       );
     } catch (error) {
       console.error('Failed to send welcome email:', error);
@@ -299,7 +299,7 @@ export class AuthService {
       try {
         await this.mailService.sendWelcome(
           email,
-          user.fullName || user.firstName,
+          user.fullName || user.firstName || '',
         );
       } catch (error) {
         console.error('Failed to send welcome email after Google auth:', error);

@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, PrismaTxClient } from '../prisma/prisma.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { EventsGateway } from 'src/gateways/events.gateway';
 
@@ -29,7 +29,7 @@ export class OrganizationsService {
     if (existing)
       throw new ConflictException('Organization name or slug already taken');
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: PrismaTxClient) => {
       // 3. Create the Organization
       const org = await tx.organization.create({
         data: { name, slug },
