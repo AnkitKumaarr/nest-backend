@@ -419,7 +419,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
-      orgId: user.companyId,
+      companyId: user.companyId,
     };
 
     // Generate access token with 30 minutes expiry
@@ -442,7 +442,7 @@ export class AuthService {
         email: user.email,
         avatarUrl: user.avatarUrl,
         role: user.role,
-        orgId: user.companyId,
+        companyId: user.companyId,
       },
     };
   }

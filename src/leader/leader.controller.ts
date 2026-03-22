@@ -16,7 +16,7 @@ export class LeaderController {
   constructor(private readonly service: LeaderService) {}
 
   private getCompanyId(req: any): string {
-    return req.user.companyId ?? req.user.orgId;
+    return req.user.companyId;
   }
 
   // Technical Leader: My teams

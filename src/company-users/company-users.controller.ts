@@ -41,7 +41,7 @@ export class CompanyUsersController {
   @UseGuards(CustomAuthGuard, RolesGuard)
   @Roles('admin')
   create(@Body() dto: CreateCompanyUserDto, @Request() req) {
-    return this.service.create(dto, req.user.orgId);
+    return this.service.create(dto, req.user.companyId);
   }
 
   // Admin-only: Regenerate temp password
@@ -49,7 +49,7 @@ export class CompanyUsersController {
   @UseGuards(CustomAuthGuard, RolesGuard)
   @Roles('admin')
   regenerateTempPassword(@Param('id') id: string, @Request() req) {
-    return this.service.regenerateTempPassword(id, req.user.orgId);
+    return this.service.regenerateTempPassword(id, req.user.companyId);
   }
 
   // List users (company scoped)
@@ -61,7 +61,7 @@ export class CompanyUsersController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
-    const companyId = req.user.companyId ?? req.user.orgId;
+    const companyId = req.user.companyId;
     return this.service.findAll(
       companyId,
       page ? parseInt(page) : 1,
@@ -74,7 +74,7 @@ export class CompanyUsersController {
   @Get(':id')
   @UseGuards(CustomAuthGuard)
   findOne(@Param('id') id: string, @Request() req) {
-    const companyId = req.user.companyId ?? req.user.orgId;
+    const companyId = req.user.companyId;
     return this.service.findOne(id, companyId);
   }
 
@@ -87,7 +87,7 @@ export class CompanyUsersController {
     @Body() dto: UpdateCompanyUserDto,
     @Request() req,
   ) {
-    return this.service.update(id, dto, req.user.orgId);
+    return this.service.update(id, dto, req.user.companyId);
   }
 
   // Soft delete
@@ -95,6 +95,6 @@ export class CompanyUsersController {
   @UseGuards(CustomAuthGuard, RolesGuard)
   @Roles('admin')
   remove(@Param('id') id: string, @Request() req) {
-    return this.service.remove(id, req.user.orgId);
+    return this.service.remove(id, req.user.companyId);
   }
 }

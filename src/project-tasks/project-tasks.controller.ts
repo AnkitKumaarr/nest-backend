@@ -6,54 +6,40 @@ import {
   Param,
   Post,
   Put,
-  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { ProjectTasksService } from './project-tasks.service';
 import { CreateProjectTaskDto } from './dto/create-project-task.dto';
-import { CreateCommentDto } from './dto/create-comment.dto';
+import { ListTasksDto } from './dto/list-tasks.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 
-@Controller('tasks')
+@Controller('project-tasks')
 @UseGuards(CustomAuthGuard)
 export class ProjectTasksController {
   constructor(private readonly service: ProjectTasksService) {}
 
   private getCompanyId(req: any): string {
-    return req.user.companyId ?? req.user.orgId;
+    return req.user.companyId;
   }
 
   private getPermissions(req: any): string[] {
     return req.user.permissions ?? [];
   }
 
-  // ── Tasks ─────────────────────────────────────────────────────────────────
-
   @Post()
-  @UseGuards(PermissionsGuard)
-  @Permissions('task:create')
+  // @UseGuards(PermissionsGuard)
+  // @Permissions('task:create')
   create(@Body() dto: CreateProjectTaskDto, @Request() req) {
     return this.service.create(dto, req.user.sub, this.getCompanyId(req));
   }
 
-  @Get()
-  findAll(
-    @Request() req,
-    @Query('teamId') teamId?: string,
-    @Query('status') status?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.service.findAll(
-      this.getCompanyId(req),
-      teamId,
-      status,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 50,
-    );
+  @Post('list')
+  listTasks(@Body() dto: ListTasksDto, @Request() req) {
+    return this.service.findAll(dto, this.getCompanyId(req));
   }
 
   @Get(':id')
@@ -61,14 +47,9 @@ export class ProjectTasksController {
     return this.service.findOne(id, this.getCompanyId(req));
   }
 
-  @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: Partial<CreateProjectTaskDto>,
-    @Request() req,
-  ) {
+  @Put()
+  update(@Body() dto: UpdateTaskDto, @Request() req) {
     return this.service.update(
-      id,
       dto,
       req.user.sub,
       this.getCompanyId(req),
@@ -83,42 +64,6 @@ export class ProjectTasksController {
       req.user.sub,
       this.getCompanyId(req),
       this.getPermissions(req),
-    );
-  }
-
-  // ── Comments ──────────────────────────────────────────────────────────────
-
-  @Post(':taskId/comments')
-  addComment(
-    @Param('taskId') taskId: string,
-    @Body() dto: CreateCommentDto,
-    @Request() req,
-  ) {
-    const username =
-      req.user.firstName
-        ? `${req.user.firstName} ${req.user.lastName ?? ''}`.trim()
-        : req.user.email;
-    return this.service.addComment(
-      taskId,
-      dto.comment,
-      req.user.sub,
-      username,
-      this.getCompanyId(req),
-    );
-  }
-
-  @Get(':taskId/comments')
-  getComments(
-    @Param('taskId') taskId: string,
-    @Request() req,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.service.getComments(
-      taskId,
-      this.getCompanyId(req),
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 20,
     );
   }
 }

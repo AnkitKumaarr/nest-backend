@@ -1,9 +1,7 @@
 import {
   IsDateString,
   IsEnum,
-  IsJSON,
   IsNotEmpty,
-  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -33,7 +31,27 @@ export class CreateProjectTaskDto {
 
   @IsOptional()
   @IsString()
+  columnId?: string;
+
+  @IsOptional()
+  @IsString()
+  creatorId?: string;
+
+  @IsOptional()
+  @IsString()
+  creatorName?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
+  @IsOptional()
+  @IsString()
   inchargeId?: string;
+
+  @IsOptional()
+  @IsString()
+  inchargeName?: string;
 
   @IsOptional()
   @IsEnum(TaskPriority)
@@ -43,9 +61,10 @@ export class CreateProjectTaskDto {
   @IsEnum(TaskStatus)
   status?: TaskStatus;
 
+  // Accepted formats: "2h 30mins", "2 hours 30 mins", "2 days", "2days"
   @IsOptional()
-  @IsNumber()
-  logTime?: number;
+  @IsString()
+  logTime?: string;
 
   @IsOptional()
   @IsObject()
@@ -54,4 +73,8 @@ export class CreateProjectTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  assignDate?: string;
 }

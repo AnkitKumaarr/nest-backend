@@ -1,8 +1,8 @@
-# Project Tasks Module
+# Project Tasks
 
-**Base path:** `/tasks`
+**Base path:** `/project-tasks`
 **Auth:** Required (all endpoints)
-**Scope:** Company + team scoped.
+**Scope:** Company + team scoped
 
 **Priority values:** `LOW` · `MEDIUM` · `HIGH`
 **Status values:** `TODO` · `IN_PROGRESS` · `REVIEW` · `DONE`
@@ -11,39 +11,63 @@
 
 ## Endpoints
 
-### POST `/tasks`
+### POST `/project-tasks`
+
 Create a project task.
 
 **Permission:** `task:create`
 
 **Body:**
+
 ```json
 {
   "title": "Implement login page",
   "teamId": "team_id_here",
+  "columnId": "column_id_here",
+  "userId": "user_id_here",
   "inchargeId": "user_id_here",
   "priority": "HIGH",
   "status": "TODO",
   "logTime": 4,
   "taskContent": { "type": "doc", "content": [] },
-  "dueDate": "2026-04-01T00:00:00.000Z"
+  "dueDate": "2026-04-01T00:00:00.000Z",
+  "assignDate": "2026-04-01T00:00:00.000Z"
 }
 ```
 
-Required: `title`, `teamId`
-Optional: `inchargeId`, `priority`, `status`, `logTime`, `taskContent`, `dueDate`
+Required: `title`, `teamId`, `taskContent`, `columnId`, `userId`
+Optional: `inchargeId`, `priority`, `status`, `logTime`, `dueDate`, `assignDate`
+
+**Response:**
+```json
+{ "statusCode": 201, "success": true, "message": "Task created successfully" }
+```
 
 ---
 
-### GET `/tasks`
-List tasks filtered by team and/or status.
+### POST `/project-tasks/list`
 
-**Query:**
+List tasks with optional filters.
+
+**Body:**
+
+```json
+{
+  "teamId": "team_id_here",
+  "taskId": "task_id_here",
+  "status": "IN_PROGRESS",
+  "page": 1,
+  "limit": 50,
+  "startDate": "2026-04-01T00:00:00.000Z",
+  "endDate": "2026-04-30T23:59:59.999Z",
+  "userId": "user_id_here"
+}
 ```
-?teamId=...&status=IN_PROGRESS&page=1&limit=50
-```
+
+All fields optional. Defaults: `page=1`, `limit=50`.
 
 **Response:**
+
 ```json
 {
   "tasks": [
@@ -64,17 +88,23 @@ List tasks filtered by team and/or status.
 
 ---
 
-### GET `/tasks/:id`
+### GET `/project-tasks/:id`
+
 Get a single task with all comments.
+
+**Response:** Full task object with nested comments.
 
 ---
 
-### PUT `/tasks/:id`
+### PUT `/project-tasks`
+
 Update a task. Only the creator or users with `task:edit` permission can update.
 
-**Body:** (all optional)
+**Body:** (all optional except `taskId`)
+
 ```json
 {
+  "taskId": "task_id_here",
   "title": "Updated title",
   "inchargeId": "user_id",
   "priority": "MEDIUM",
@@ -85,39 +115,18 @@ Update a task. Only the creator or users with `task:edit` permission can update.
 }
 ```
 
----
-
-### DELETE `/tasks/:id`
-Delete a task. Only the creator or users with `task:delete` permission can delete.
-
----
-
-### POST `/tasks/:taskId/comments`
-Add a comment to a task.
-
-**Body:**
+**Response:**
 ```json
-{ "comment": "Blocked by auth issue." }
+{ "statusCode": 200, "success": true, "message": "Task updated successfully" }
 ```
+
+---
+
+### DELETE `/project-tasks/:id`
+
+Delete a task. Only the creator or users with `task:delete` permission can delete.
 
 **Response:**
 ```json
-{
-  "id": "...",
-  "taskId": "...",
-  "userId": "...",
-  "username": "Alice Brown",
-  "comment": "Blocked by auth issue.",
-  "createdAt": "..."
-}
-```
-
----
-
-### GET `/tasks/:taskId/comments`
-List all comments on a task (paginated).
-
-**Query:**
-```
-?page=1&limit=20
+{ "statusCode": 200, "success": true, "message": "Task deleted successfully" }
 ```

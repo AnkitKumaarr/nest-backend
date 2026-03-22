@@ -10,7 +10,7 @@ export class MeetingsController {
 
   @Post()
   create(@Body() dto: CreateMeetingDto, @Request() req) {
-    return this.meetingsService.create(dto, req.user.sub, req.orgId);
+    return this.meetingsService.create(dto, req.user.sub, req.user.companyId);
   }
 
   @Get()

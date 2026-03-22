@@ -36,7 +36,6 @@ model User {
   resetTokenExp   DateTime?
   googleId        String? 
   companyId       String?       @db.ObjectId
-  company         Organization? @relation(fields: [companyId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -97,21 +96,12 @@ model ActivityLog {
   createdAt DateTime @default(now())
 }
 
-model Organization {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  slug        String   @unique // e.g., "acme-corp"
-  createdAt   DateTime @default(now())
-
-  // Relations
-  members     User[]
-}
-
 // ─── TaskForge Modules ──────────────────────────────────────────────────────
 
 model Company {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   name         String
+  about        String?
   adminId      String        @db.ObjectId
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -159,7 +149,7 @@ model Team {
   name         String
   companyId    String       @db.ObjectId
   company      Company      @relation(fields: [companyId], references: [id])
-  createdBy    String       @db.ObjectId
+  createdBy    CreatedBy?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -168,45 +158,75 @@ model Team {
 }
 
 model TeamMember {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  teamId     String   @db.ObjectId
-  team       Team     @relation(fields: [teamId], references: [id])
-  userId     String   @db.ObjectId
-  firstName  String
-  lastName   String
-  roleInTeam String   // "Technical Leader" or "Member"
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String     @db.ObjectId
+  team      Team       @relation(fields: [teamId], references: [id])
+  teamName  String
+  companyId String     @db.ObjectId
+  name      String
+  createdBy CreatedBy?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Project {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  companyId   String     @db.ObjectId
+  teamId      String?    @db.ObjectId
+  createdBy   CreatedBy?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model ProjectTask {
   id          String               @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   creatorId   String               @db.ObjectId
+  creatorName String?
   inchargeId  String?              @db.ObjectId
+  inchargeName String?
   teamId      String               @db.ObjectId
   team        Team                 @relation(fields: [teamId], references: [id])
   companyId   String               @db.ObjectId
   company     Company              @relation(fields: [companyId], references: [id])
   priority    String               @default("MEDIUM")
   status      String               @default("TODO")
-  logTime     Float?
-  taskContent Json?
+  logTime     String?
+  columnId       String?              @db.ObjectId
+  columnName     String?
+  column         Column?              @relation(fields: [columnId], references: [id])
+  assignDate     DateTime?
+  assignedUserId String?              @db.ObjectId
+  taskContent    Json?
+  renderedHtml   String?
+  contentPreview String?
   dueDate     DateTime?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
-  comments    ProjectTaskComment[]
+  comments    Comment[]
 }
 
-model ProjectTaskComment {
-  id        String      @id @default(auto()) @map("_id") @db.ObjectId
-  taskId    String      @db.ObjectId
-  task      ProjectTask @relation(fields: [taskId], references: [id])
-  userId    String      @db.ObjectId
-  username  String
-  comment   String
-  createdAt DateTime    @default(now())
+model Comment {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  taskId         String      @db.ObjectId
+  task           ProjectTask @relation(fields: [taskId], references: [id])
+  commentBy      CreatedBy?
+  comment        Json?       // raw ProseMirror/TipTap JSON doc
+  renderedHtml   String?     // HTML rendered from comment JSON
+  contentPreview String?     // plain text preview
+  parentId       String?     @db.ObjectId
+  parent         Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Comment[]   @relation("CommentReplies")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+type CreatedBy {
+  userId String @db.ObjectId
+  name   String
 }
 
 type WeekDay {
@@ -265,5 +285,38 @@ model WeekTask {
   company    Company? @relation(fields: [companyId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+
+model Column {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String        // immutable key — never updated after creation
+  label        String        // display name — modifiable
+  value        String        // lowercase of label — auto-derived
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  projectTasks ProjectTask[]
+}
+
+model Priority {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   // immutable key — never updated after creation
+  label     String   // display name — modifiable
+  value     String   // lowercase of label — auto-derived
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Status {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   // immutable key — never updated after creation
+  label     String   // display name — modifiable
+  value     String   // lowercase of label — auto-derived
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 

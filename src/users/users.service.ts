@@ -24,8 +24,44 @@ export class UsersService {
     });
   }
 
-  async findAll() {
-    return this.prisma.user.findMany();
+  async findAll(page = 1, limit = 25, search?: string) {
+    const skip = (page - 1) * limit;
+    const where: any = search
+      ? {
+          OR: [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { fullName: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [data, totalRecords] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+          role: true,
+          department: true,
+          status: true,
+          companyId: true,
+          isEmailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { data, meta: { page, limit, totalRecords } };
   }
 
   async findOne(id: string) {

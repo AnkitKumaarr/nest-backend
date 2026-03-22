@@ -8,17 +8,22 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
-import { OrganizationsModule } from './organizations/organizations.module';
 import { EventsModule } from './gateways/events.module';
 import { MailModule } from './mail/mail.module';
 import { CompaniesModule } from './companies/companies.module';
 import { CompanyUsersModule } from './company-users/company-users.module';
 import { RolesModule } from './roles/roles.module';
 import { TeamsModule } from './teams/teams.module';
+import { TeamMembersModule } from './team-members/team-members.module';
+import { ProjectsModule } from './projects/projects.module';
+import { CommentsModule } from './comments/comments.module';
 import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { WeeksModule } from './weeks/weeks.module';
 import { WeeklyTasksModule } from './weekly-tasks/weekly-tasks.module';
 import { LeaderModule } from './leader/leader.module';
+import { ColumnsModule } from './columns/columns.module';
+import { PriorityModule } from './priority/priority.module';
+import { StatusModule } from './status/status.module';
 
 @Module({
   imports: [
@@ -30,17 +35,22 @@ import { LeaderModule } from './leader/leader.module';
     MeetingsModule,
     AnalyticsModule,
     ActivityLogsModule,
-    OrganizationsModule,
     MailModule,
     // ── TaskForge Modules ──────────────────────────
     CompaniesModule,
     CompanyUsersModule,
     RolesModule,
     TeamsModule,
+    TeamMembersModule,
+    ProjectsModule,
+    CommentsModule,
     ProjectTasksModule,
     WeeksModule,
     WeeklyTasksModule,
     LeaderModule,
+    ColumnsModule,
+    PriorityModule,
+    StatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],

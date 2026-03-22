@@ -21,7 +21,7 @@ export class WeeklyTasksController {
   constructor(private readonly service: WeeklyTasksService) {}
 
   private getCompanyId(req: any): string | undefined {
-    return req.user.companyId ?? req.user.orgId ?? undefined;
+    return req.user.companyId ?? undefined;
   }
 
   @Post()

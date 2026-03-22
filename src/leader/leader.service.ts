@@ -5,37 +5,28 @@ import { PrismaService } from '../prisma/prisma.service';
 export class LeaderService {
   constructor(private prisma: PrismaService) {}
 
-  // Teams where this user is a Technical Leader
+  // All teams in the company (leader view)
   async getLeaderTeams(userId: string, companyId: string) {
-    const memberships = await this.prisma.teamMember.findMany({
-      where: { userId, roleInTeam: 'Technical Leader' },
-      select: { teamId: true },
-    });
-
-    const teamIds = memberships.map((m) => m.teamId);
-    if (teamIds.length === 0) return [];
-
     return this.prisma.team.findMany({
-      where: { id: { in: teamIds }, companyId },
+      where: { companyId },
       include: { _count: { select: { teamMembers: true, projectTasks: true } } },
     });
   }
 
-  // Tasks for teams where user is Technical Leader, with progress stats
+  // Tasks across all company teams with progress stats
   async getLeaderTasks(
     userId: string,
     companyId: string,
     page = 1,
     limit = 50,
   ) {
-    const memberships = await this.prisma.teamMember.findMany({
-      where: { userId, roleInTeam: 'Technical Leader' },
-      select: { teamId: true },
+    const teams = await this.prisma.team.findMany({
+      where: { companyId },
+      select: { id: true },
     });
 
-    const teamIds = memberships.map((m) => m.teamId);
+    const teamIds = teams.map((t) => t.id);
     const skip = (page - 1) * limit;
-
     const where = { teamId: { in: teamIds }, companyId };
 
     const [tasks, total] = await Promise.all([
@@ -54,15 +45,9 @@ export class LeaderService {
       teamIds.map(async (teamId) => {
         const [total, done, inProgress, review] = await Promise.all([
           this.prisma.projectTask.count({ where: { teamId, companyId } }),
-          this.prisma.projectTask.count({
-            where: { teamId, companyId, status: 'DONE' },
-          }),
-          this.prisma.projectTask.count({
-            where: { teamId, companyId, status: 'IN_PROGRESS' },
-          }),
-          this.prisma.projectTask.count({
-            where: { teamId, companyId, status: 'REVIEW' },
-          }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'IN_PROGRESS' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'REVIEW' } }),
         ]);
         return {
           teamId,
@@ -78,14 +63,14 @@ export class LeaderService {
     return { tasks, stats, meta: { page, limit, total } };
   }
 
-  // Insights: completion rate, top performers (cached in real prod via Redis)
+  // Insights: completion rate, top performers
   async getLeaderInsights(userId: string, companyId: string) {
-    const memberships = await this.prisma.teamMember.findMany({
-      where: { userId, roleInTeam: 'Technical Leader' },
-      select: { teamId: true },
+    const teams = await this.prisma.team.findMany({
+      where: { companyId },
+      select: { id: true },
     });
 
-    const teamIds = memberships.map((m) => m.teamId);
+    const teamIds = teams.map((t) => t.id);
     if (teamIds.length === 0) {
       return { completionRate: 0, topPerformers: [], teamInsights: [] };
     }
@@ -109,7 +94,6 @@ export class LeaderService {
       }
     }
 
-    // Enrich with user details
     const topPerformerIds = Object.entries(performerMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -120,19 +104,17 @@ export class LeaderService {
       select: { id: true, firstName: true, lastName: true, email: true },
     });
 
-    const topPerformers = topPerformerIds.map((id) => {
-      const user = performers.find((p) => p.id === id);
-      return { ...user, completedTasks: performerMap[id] };
-    });
+    const topPerformers = topPerformerIds.map((id) => ({
+      ...performers.find((p) => p.id === id),
+      completedTasks: performerMap[id],
+    }));
 
     // Per-team insights
     const teamInsights = await Promise.all(
       teamIds.map(async (teamId) => {
         const [t, d] = await Promise.all([
           this.prisma.projectTask.count({ where: { teamId, companyId } }),
-          this.prisma.projectTask.count({
-            where: { teamId, companyId, status: 'DONE' },
-          }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
         ]);
         return {
           teamId,
@@ -159,22 +141,13 @@ export class LeaderService {
 
     const [total, done, inProgress, review, todo, members] = await Promise.all([
       this.prisma.projectTask.count({ where: { teamId, companyId } }),
-      this.prisma.projectTask.count({
-        where: { teamId, companyId, status: 'DONE' },
-      }),
-      this.prisma.projectTask.count({
-        where: { teamId, companyId, status: 'IN_PROGRESS' },
-      }),
-      this.prisma.projectTask.count({
-        where: { teamId, companyId, status: 'REVIEW' },
-      }),
-      this.prisma.projectTask.count({
-        where: { teamId, companyId, status: 'TODO' },
-      }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'IN_PROGRESS' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'REVIEW' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'TODO' } }),
       this.prisma.teamMember.count({ where: { teamId } }),
     ]);
 
-    // Top performers
     const doneTasks = await this.prisma.projectTask.findMany({
       where: { teamId, companyId, status: 'DONE', inchargeId: { not: null } },
       select: { inchargeId: true },

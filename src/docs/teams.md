@@ -1,14 +1,15 @@
-# Teams Module
+# Teams
 
 **Base path:** `/teams`
 **Auth:** Required (all endpoints)
-**Scope:** Company-scoped.
+**Scope:** Company-scoped
 
 ---
 
 ## Endpoints
 
 ### POST `/teams`
+
 Create a new team.
 
 **Role:** `admin`
@@ -20,107 +21,99 @@ Create a new team.
 
 **Response:**
 ```json
-{
-  "id": "...",
-  "name": "Backend Team",
-  "companyId": "...",
-  "createdBy": "...",
-  "createdAt": "..."
-}
+{ "statusCode": 201, "success": true, "message": "Team created successfully" }
 ```
 
 ---
 
 ### GET `/teams`
-List all teams (paginated).
 
-**Query:**
-```
-?page=1&limit=20
+List all teams for the company (paginated).
+
+**Query:** `?page=1&limit=20`
+
+**Response:**
+```json
+{
+  "teams": [
+    {
+      "id": "...",
+      "name": "Engineering",
+      "companyId": "...",
+      "createdBy": "...",
+      "createdAt": "...",
+      "_count": { "teamMembers": 3 }
+    }
+  ],
+  "meta": { "page": 1, "limit": 20, "total": 5 }
+}
 ```
 
 ---
 
 ### GET `/teams/:id`
+
 Get a single team with member count.
+
+**Response:**
+```json
+{
+  "id": "...",
+  "name": "Engineering",
+  "companyId": "...",
+  "createdBy": "...",
+  "createdAt": "...",
+  "_count": { "teamMembers": 3 }
+}
+```
 
 ---
 
 ### PUT `/teams/:id`
+
 Rename a team.
 
 **Role:** `admin`
 
 **Body:**
 ```json
-{ "name": "Frontend Team" }
+{ "name": "Platform Engineering" }
+```
+
+**Response:**
+```json
+{ "statusCode": 200, "success": true, "message": "Team updated successfully" }
 ```
 
 ---
 
 ### DELETE `/teams/:id`
+
 Delete a team and all its members.
 
 **Role:** `admin`
 
----
-
-### POST `/teams/:id/members`
-Add members to a team. `roleInTeam` is auto-assigned from their company role.
-
-**Permission:** `team:manage-members`
-
-**Body:**
-```json
-{ "userIds": ["userId1", "userId2"] }
-```
-
 **Response:**
 ```json
-{ "message": "2 member(s) added to team" }
+{ "statusCode": 200, "success": true, "message": "Team deleted successfully" }
 ```
-
----
-
-### GET `/teams/:id/members`
-Get all members of a team.
-
-**Response:**
-```json
-[
-  {
-    "id": "...",
-    "teamId": "...",
-    "userId": "...",
-    "firstName": "Alice",
-    "lastName": "Brown",
-    "roleInTeam": "Technical Leader"
-  }
-]
-```
-
----
-
-### DELETE `/teams/:id/members/:userId`
-Remove a member from a team.
-
-**Permission:** `team:manage-members`
 
 ---
 
 ### GET `/teams/:id/insights`
-Top performers, task status breakdown, completion rate for a team.
+
+Top performers, task status breakdown, and completion rate for a team.
 
 **Response:**
 ```json
 {
   "teamId": "...",
-  "teamName": "Backend Team",
-  "members": 6,
+  "teamName": "Engineering",
+  "members": 3,
   "tasks": { "total": 20, "todo": 4, "inProgress": 5, "review": 3, "done": 8 },
   "completionRate": 40,
   "topPerformers": [
-    { "id": "...", "firstName": "Alice", "lastName": "Brown", "completedTasks": 5 }
+    { "id": "...", "name": "Member A", "completedTasks": 5 }
   ]
 }
 ```

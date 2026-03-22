@@ -22,12 +22,12 @@ export class RolesController {
 
   @Post()
   create(@Body() dto: CreateRoleDto, @Request() req) {
-    return this.service.create(dto, req.user.orgId);
+    return this.service.create(dto, req.user.companyId);
   }
 
   @Get()
   findAll(@Request() req) {
-    return this.service.findAll(req.user.orgId);
+    return this.service.findAll(req.user.companyId);
   }
 
   @Put(':id')
@@ -36,6 +36,6 @@ export class RolesController {
     @Body() dto: CreateRoleDto,
     @Request() req,
   ) {
-    return this.service.update(id, dto, req.user.orgId);
+    return this.service.update(id, dto, req.user.companyId);
   }
 }
