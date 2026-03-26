@@ -62,19 +62,17 @@ model Task {
 }
 
 model Meeting {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  title         String
-  description   String?
-  startTime     DateTime
-  endTime       DateTime
-  meetingLink   String?
-  status        String   @default("scheduled")
-  isRecurring   Boolean  @default(false)
-  recurringDays Int[]
-  meetingType   String?
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  meetingLink String?
+  status      String
+  isRecurring Boolean  @default(false)
 
   createdBy String @db.ObjectId
-  companyId    String? @db.ObjectId
+  companyId String @db.ObjectId
 
   participants MeetingParticipant[]
 
