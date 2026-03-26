@@ -1,15 +1,31 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { MeetingsService } from './meetings.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 
-@Controller('api/meetings')
+@Controller('meetings')
 @UseGuards(CustomAuthGuard)
 export class MeetingsController {
   constructor(private readonly meetingsService: MeetingsService) {}
 
-  @Post()
+  @Post('create')
   create(@Body() dto: CreateMeetingDto, @Request() req) {
+    return this.meetingsService.create(dto, req.user.sub, req.orgId);
+  }
+
+  // To maintain backward compatibility if any part of the frontend uses the root POST
+  @Post()
+  createRoot(@Body() dto: CreateMeetingDto, @Request() req) {
     return this.meetingsService.create(dto, req.user.sub, req.orgId);
   }
 

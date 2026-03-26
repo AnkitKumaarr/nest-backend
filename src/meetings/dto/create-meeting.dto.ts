@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString, IsBoolean, IsUrl } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsDateString,
+  IsBoolean,
+  IsArray,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateMeetingDto {
   @IsString()
@@ -16,14 +26,26 @@ export class CreateMeetingDto {
   endTime: string;
 
   @IsOptional()
-  @IsUrl()
-  meetingLink?: string;
-
   @IsString()
-  @IsNotEmpty()
-  status: string; // e.g., "scheduled", "ongoing", "completed"
+  meetingLink?: string;
 
   @IsOptional()
   @IsBoolean()
   isRecurring?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  recurringDays?: number[];
+
+  @IsOptional()
+  @IsString()
+  meetingType?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  participantIds: string[];
 }

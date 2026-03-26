@@ -46,6 +46,7 @@ export class OrganizationsService {
 
       // 5. Log the activity
       await this.activityLogs.log(
+        tx,
         userId,
         'ORG_CREATED',
         'Organization',

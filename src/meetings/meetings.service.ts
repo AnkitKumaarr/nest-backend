@@ -17,6 +17,28 @@ export class MeetingsService {
     private activityLogs: ActivityLogsService,
   ) {}
 
+  private mapMeetingResponse(meeting: any) {
+    return {
+      id: meeting.id,
+      title: meeting.title,
+      description: meeting.description,
+      startTime: meeting.startTime.toISOString(),
+      endTime: meeting.endTime.toISOString(),
+      meetingLink: meeting.meetingLink,
+      isRecurring: meeting.isRecurring,
+      recurringDays: meeting.recurringDays || [],
+      meetingType: meeting.meetingType,
+      status: meeting.status,
+      participants: (meeting.participants || []).map((p: any) => ({
+        id: p.user.id,
+        name:
+          p.user.fullName ||
+          `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
+        email: p.user.email,
+      })),
+    };
+  }
+
   async create(dto: CreateMeetingDto, userId: string, orgId: string) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
@@ -25,9 +47,13 @@ export class MeetingsService {
       throw new BadRequestException('End time must be after start time');
     }
 
+    const { participantIds, ...meetingData } = dto;
+
+    // Check for scheduling conflicts for the creator
     const conflict = await this.prisma.meeting.findFirst({
       where: {
         createdBy: userId,
+        status: { not: 'cancelled' },
         OR: [
           { startTime: { lte: start }, endTime: { gt: start } },
           { startTime: { lt: end }, endTime: { gte: end } },
@@ -44,16 +70,29 @@ export class MeetingsService {
 
     const meeting = await this.prisma.meeting.create({
       data: {
-        ...dto,
+        ...meetingData,
         startTime: start,
         endTime: end,
         companyId: orgId,
         createdBy: userId,
+        participants: {
+          create: participantIds.map((id) => ({
+            userId: id,
+            status: 'pending',
+          })),
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
 
-    // 1. LOG: Meeting Creation
     await this.activityLogs.log(
+      this.prisma,
       userId,
       'MEETING_CREATED',
       'Meeting',
@@ -61,53 +100,96 @@ export class MeetingsService {
       `Created meeting: ${meeting.title}`,
     );
 
-    this.eventsGateway.sendToOrg(orgId, 'MEETING_CREATED', meeting);
+    const response = this.mapMeetingResponse(meeting);
+    this.eventsGateway.sendToOrg(orgId, 'MEETING_CREATED', response);
 
-    return meeting;
+    return response;
   }
 
   async findAll(userId: string) {
-    return this.prisma.meeting.findMany({
+    const meetings = await this.prisma.meeting.findMany({
       where: {
         OR: [{ createdBy: userId }, { participants: { some: { userId } } }],
       },
       include: {
-        participants: true,
+        participants: {
+          include: {
+            user: true,
+          },
+        },
       },
       orderBy: { startTime: 'asc' },
     });
+
+    return meetings.map((m) => this.mapMeetingResponse(m));
   }
 
   async findOne(id: string) {
     const meeting = await this.prisma.meeting.findUnique({
       where: { id },
-      include: { participants: { include: { user: true } } },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
+      },
     });
     if (!meeting) throw new NotFoundException('Meeting not found');
-    return meeting;
+    return this.mapMeetingResponse(meeting);
   }
 
   async update(id: string, dto: any, userId: string) {
-    const meeting = await this.prisma.meeting.findUnique({ where: { id } });
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { id },
+      include: { participants: true },
+    });
     if (!meeting || meeting.createdBy !== userId) {
       throw new UnauthorizedException(
         'Only the creator can update the meeting',
       );
     }
 
+    const { participantIds, ...updateData } = dto;
+
+    // Handle participant updates if provided
+    let participantsUpdate = {};
+    if (participantIds) {
+      // Delete all and recreate for simplicity
+      await this.prisma.meetingParticipant.deleteMany({
+        where: { meetingId: id },
+      });
+      participantsUpdate = {
+        participants: {
+          create: (participantIds as string[]).map((pid: string) => ({
+            userId: pid,
+            status: 'pending',
+          })),
+        },
+      };
+    }
+
     const updatedMeeting = await this.prisma.meeting.update({
       where: { id },
       data: {
-        ...dto,
+        ...updateData,
         ...(dto.startTime && { startTime: new Date(dto.startTime) }),
         ...(dto.endTime && { endTime: new Date(dto.endTime) }),
+        ...participantsUpdate,
+      },
+      include: {
+        participants: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
 
-    // 2. LOG: General Update or Cancellation
     const action =
       dto.status === 'cancelled' ? 'MEETING_CANCELLED' : 'MEETING_UPDATED';
     await this.activityLogs.log(
+      this.prisma,
       userId,
       action,
       'Meeting',
@@ -115,14 +197,14 @@ export class MeetingsService {
       `Updated meeting: ${updatedMeeting.title}`,
     );
 
-    // 3. Broadcast Update
+    const response = this.mapMeetingResponse(updatedMeeting);
     this.eventsGateway.sendToOrg(
       updatedMeeting.companyId,
       'MEETING_UPDATED',
-      updatedMeeting,
+      response,
     );
 
-    return updatedMeeting;
+    return response;
   }
 
   async remove(id: string, userId: string) {
@@ -133,14 +215,18 @@ export class MeetingsService {
       );
     }
 
-    // 3. LOG: Capture title before deletion
     await this.activityLogs.log(
+      this.prisma,
       userId,
       'MEETING_DELETED',
       'Meeting',
       id,
       `Deleted meeting: ${meeting.title}`,
     );
+
+    await this.prisma.meetingParticipant.deleteMany({
+      where: { meetingId: id },
+    });
 
     return this.prisma.meeting.delete({ where: { id } });
   }
@@ -165,21 +251,25 @@ export class MeetingsService {
 
     const participant = await this.prisma.meetingParticipant.create({
       data: { meetingId, userId, status: 'accepted' },
+      include: { user: true },
     });
 
-    // 4. LOG: Participant Joined
     await this.activityLogs.log(
+      this.prisma,
       userId,
       'MEETING_JOINED',
       'Meeting',
       meetingId,
       `Joined meeting: ${meeting.title}`,
     );
-    // 4. Notify the Creator: "Someone just joined your meeting"
+
     this.eventsGateway.sendToUser(meeting.createdBy, 'PARTICIPANT_JOINED', {
       meetingId,
       userId,
-      message: `Someone joined ${meeting.title}`,
+      userName:
+        participant.user.fullName ||
+        `${participant.user.firstName} ${participant.user.lastName || ''}`.trim(),
+      message: `${participant.user.firstName} joined ${meeting.title}`,
     });
 
     return participant;
