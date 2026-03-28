@@ -1,17 +1,33 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { TasksModule } from './tasks/tasks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
-import { OrganizationsModule } from './organizations/organizations.module';
 import { EventsModule } from './gateways/events.module';
 import { MailModule } from './mail/mail.module';
+import { CompaniesModule } from './companies/companies.module';
+import { CompanyUsersModule } from './company-users/company-users.module';
+import { RolesModule } from './roles/roles.module';
+import { TeamsModule } from './teams/teams.module';
+import { TeamMembersModule } from './team-members/team-members.module';
+import { ProjectsModule } from './projects/projects.module';
+import { CommentsModule } from './comments/comments.module';
+import { ProjectTasksModule } from './project-tasks/project-tasks.module';
+import { WeeksModule } from './weeks/weeks.module';
+import { WeeklyTasksModule } from './weekly-tasks/weekly-tasks.module';
+import { LeaderModule } from './leader/leader.module';
+import { ColumnsModule } from './columns/columns.module';
+import { PriorityModule } from './priority/priority.module';
+import { StatusModule } from './status/status.module';
+import { TaskVisualsModule } from './task-visuals/task-visuals.module';
+import { MeetingVisualsModule } from './meeting-visuals/meeting-visuals.module';
+import { AnalyticsSnapshotModule } from './analytics-snapshot/analytics-snapshot.module';
+import { TeamSnapshotModule } from './team-snapshot/team-snapshot.module';
+import { SettingsModule } from './settings/settings.module';
+import { FileManagerModule } from './file-manager/file-manager.module';
 
 @Module({
   imports: [
@@ -19,15 +35,33 @@ import { MailModule } from './mail/mail.module';
     PrismaModule,
     UsersModule,
     AuthModule,
-    TasksModule,
     NotificationsModule,
     MeetingsModule,
     AnalyticsModule,
     ActivityLogsModule,
-    OrganizationsModule,
     MailModule,
+    // ── TaskForge Modules ──────────────────────────
+    CompaniesModule,
+    CompanyUsersModule,
+    RolesModule,
+    TeamsModule,
+    TeamMembersModule,
+    ProjectsModule,
+    CommentsModule,
+    ProjectTasksModule,
+    WeeksModule,
+    WeeklyTasksModule,
+    LeaderModule,
+    ColumnsModule,
+    PriorityModule,
+    StatusModule,
+    TaskVisualsModule,
+    MeetingVisualsModule,
+    AnalyticsSnapshotModule,
+    TeamSnapshotModule,
+    SettingsModule,
+    FileManagerModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+
 })
 export class AppModule {}

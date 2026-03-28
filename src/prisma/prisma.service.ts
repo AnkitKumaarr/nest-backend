@@ -11,3 +11,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$disconnect();
   }
 }
+
+/** Use this type to annotate `tx` inside $transaction callbacks */
+export type PrismaTxClient = Omit<
+  PrismaService,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;

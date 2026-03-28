@@ -6,11 +6,20 @@ import { map } from 'rxjs/operators';
 export class TransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
-      map((data) => ({
-        success: true,
-        statusCode: context.switchToHttp().getResponse().statusCode,
-        data, 
-      })),
+      map((data) => {
+        const statusCode = context.switchToHttp().getResponse().statusCode;
+        // Mutation response — service returned { message: '...' }
+        if (
+          data &&
+          typeof data === 'object' &&
+          'message' in data &&
+          Object.keys(data).length === 1
+        ) {
+          return { statusCode, success: true, message: data.message };
+        }
+        // Data response — return as-is under data key
+        return { statusCode, success: true, data };
+      }),
     );
   }
 }

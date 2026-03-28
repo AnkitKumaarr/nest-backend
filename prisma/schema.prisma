@@ -20,59 +20,46 @@ model User {
   email        String   @unique
   passwordHash String
   fullName     String?
-  firstName    String
+  firstName    String?
   lastName     String?
   avatarUrl    String?
   role         String   @default("user")
   department   String?
   status       String   @default("active")
+  location     String?
+  jobPost      String?
+  studyAt      String?
+  about        String?
+  socialLinks  Json?
   activityLogs ActivityLog[]
   meetingParticipants MeetingParticipant[]
   notifications Notification[]
   isEmailVerified Boolean  @default(false)
   verificationOtp String?
   otpExpires      DateTime?
-  resetToken      String?  
+  resetToken      String?
   resetTokenExp   DateTime?
-  googleId        String? 
+  googleId        String?
   companyId       String?       @db.ObjectId
-  company         Organization? @relation(fields: [companyId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
-model Task {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId  
-  title       String
-  description String?
-  date        String? // Store as ISO string
-  dueDate     String? // Store as ISO string
-  createdDay  String? // Day name like "Monday", "Tuesday", etc.
-  status      String   @default("pending")
-  priority    String   @default("medium")
-  blocker     String?  // e.g., "Waiting for approval"
-  groupId     String? @db.ObjectId // Can be same across multiple tasks
-
-  assignedTo   String? @db.ObjectId
-  createdBy    String  @db.ObjectId
-  companyId    String? @db.ObjectId
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model Meeting {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime
-  meetingLink String?
-  status      String
-  isRecurring Boolean  @default(false)
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  title              String
+  description        String?
+  startTime          DateTime
+  endTime            DateTime
+  meetingLink        String?
+  status             String   @default("Upcoming")
+  isRecurring        Boolean  @default(false)
+  recurringDays      Int[]
+  meetingType        String?
+  cancellationReason String?
 
-  createdBy String @db.ObjectId
-  companyId String @db.ObjectId
+  createdBy String  @db.ObjectId
+  companyId String? @db.ObjectId
 
   participants MeetingParticipant[]
 
@@ -117,13 +104,347 @@ model ActivityLog {
   createdAt DateTime @default(now())
 }
 
-model Organization {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+// ─── TaskForge Modules ──────────────────────────────────────────────────────
+
+model Company {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  about        String?
+  adminId      String        @db.ObjectId
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  companyUsers CompanyUser[]
+  roles        Role[]
+  teams        Team[]
+  projectTasks ProjectTask[]
+  weekTasks    WeekTask[]
+}
+
+model CompanyUser {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  email              String    @unique
+  firstName          String
+  lastName           String
+  companyId          String    @db.ObjectId
+  company            Company   @relation(fields: [companyId], references: [id])
+  roleId             String    @db.ObjectId
+  role               Role      @relation(fields: [roleId], references: [id])
+  isActive           Boolean   @default(true)
+  isDeleted          Boolean   @default(false)
+  tempPassword       String?
+  tempPasswordExpiry DateTime?
+  hasChangedPassword Boolean   @default(false)
+  password           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Role {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  permissions  String[]
+  companyId    String        @db.ObjectId
+  company      Company       @relation(fields: [companyId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  companyUsers CompanyUser[]
+}
+
+model Team {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  companyId    String?      @db.ObjectId
+  company      Company?     @relation(fields: [companyId], references: [id])
+  createdBy    CreatedBy?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  teamMembers  TeamMember[]
+  projectTasks ProjectTask[]
+}
+
+model TeamMember {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String     @db.ObjectId
+  team      Team       @relation(fields: [teamId], references: [id])
+  teamName  String
+  companyId String?    @db.ObjectId
+  name      String
+  createdBy CreatedBy?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Project {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  slug        String   @unique // e.g., "acme-corp"
-  createdAt   DateTime @default(now())
-  
-  // Relations
-  members     User[]
+  description String?
+  companyId   String     @db.ObjectId
+  teamId      String?    @db.ObjectId
+  createdBy   CreatedBy?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model ProjectTask {
+  id          String               @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  creatorId   String               @db.ObjectId
+  creatorName String?
+  inchargeId  String?              @db.ObjectId
+  inchargeName String?
+  teamId      String               @db.ObjectId
+  team        Team                 @relation(fields: [teamId], references: [id])
+  companyId   String               @db.ObjectId
+  company     Company              @relation(fields: [companyId], references: [id])
+  priority    String               @default("MEDIUM")
+  status      String               @default("TODO")
+  logTime     String?
+  columnId       String?              @db.ObjectId
+  columnName     String?
+  column         Column?              @relation(fields: [columnId], references: [id])
+  assignDate     DateTime?
+  assignedUserId String?              @db.ObjectId
+  taskContent    Json?
+  renderedHtml   String?
+  contentPreview String?
+  dueDate     DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  comments    Comment[]
+}
+
+model Comment {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  taskId         String      @db.ObjectId
+  task           ProjectTask @relation(fields: [taskId], references: [id])
+  commentBy      CreatedBy?
+  comment        Json?       // raw ProseMirror/TipTap JSON doc
+  renderedHtml   String?     // HTML rendered from comment JSON
+  contentPreview String?     // plain text preview
+  parentId       String?     @db.ObjectId
+  parent         Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies        Comment[]   @relation("CommentReplies")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+type CreatedBy {
+  userId String @db.ObjectId
+  name   String
+}
+
+type WeekDay {
+  dayId String   @db.ObjectId
+  name  String
+  date  DateTime?
+}
+
+type WeekMonth {
+  monthId String @db.ObjectId
+  name    String
+  number  Int
+}
+
+model Week {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  label      String     // "Week 1", "Week 2", etc.
+  weekNumber Int
+  month      WeekMonth
+  year       Int
+  startDate  DateTime
+  endDate    DateTime
+  days       WeekDay[]
+  userId     String     @db.ObjectId
+  companyId  String?    @db.ObjectId
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  weekTasks  WeekTask[]
+}
+
+type DayDetails {
+  dayName     String
+  monthName   String
+  monthNumber Int
+  year        Int
+  date        DateTime?
+}
+
+model WeekTask {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  weekId     String      @db.ObjectId
+  week       Week        @relation(fields: [weekId], references: [id])
+  title      String?
+  content    String?
+  startDate  String?
+  dayId      String?     @db.ObjectId
+  dayDetails DayDetails?
+  dueDate    String?
+  priority   String   @default("medium")
+  status     String   @default("todo")
+  blocker    String?
+  assignedTo String?
+  userId     String   @db.ObjectId
+  companyId  String?  @db.ObjectId
+  company    Company? @relation(fields: [companyId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+
+model Column {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  name         String        // immutable key — never updated after creation
+  label        String        // display name — modifiable
+  value        String        // lowercase of label — auto-derived
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  projectTasks ProjectTask[]
+}
+
+model Priority {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   // immutable key — never updated after creation
+  label     String   // display name — modifiable
+  value     String   // lowercase of label — auto-derived
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Status {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   // immutable key — never updated after creation
+  label     String   // display name — modifiable
+  value     String   // lowercase of label — auto-derived
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskVisual {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique // e.g. "team_task_status_<teamId>" or "individual_priority_<userId>"
+  title     String
+  type      String   // task_status | priority | workload | completion_trend | overdue | productivity
+  mode      String   // individual | team
+  userId    String?  @db.ObjectId
+  teamId    String?  @db.ObjectId
+  chartType String
+  data      Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Team Snapshot ──────────────────────────────────────────────────────────
+// Pre-aggregated chart snapshots for a team and its members.
+// Refreshed whenever a team or team-member record is mutated.
+// Types: member_count | task_status | task_priority | workload | completion_trend | member_growth
+model TeamSnapshot {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique // "team_<type>_<teamId>"
+  title     String
+  type      String   // member_count | task_status | task_priority | workload | completion_trend | member_growth
+  teamId    String   @db.ObjectId
+  chartType String
+  data      Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Meeting Visuals ────────────────────────────────────────────────────────
+// Stores pre-aggregated chart snapshots for meeting analytics.
+// Refreshed automatically whenever a meeting is created, updated, or deleted.
+// Types: meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
+model MeetingVisual {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique // "company_meeting_status_<companyId>" | "individual_frequency_<userId>"
+  title     String
+  type      String   // meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
+  mode      String   // individual | company
+  userId    String?  @db.ObjectId // set when mode = individual
+  companyId String?  @db.ObjectId // set when mode = company
+  chartType String
+  data      Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Analytics Snapshot ─────────────────────────────────────────────────────
+// One rich summary document per user / team / company.
+// Combines ProjectTask + WeekTask + Meeting data into a single detail-view payload.
+// This is the "detail panel" data shown when a user drills into any chart.
+// Refreshed on any task or meeting mutation.
+model AnalyticsSnapshot {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                 String   @unique // "snapshot_user_<userId>" | "snapshot_team_<teamId>" | "snapshot_company_<companyId>"
+  scope               String   // user | team | company
+  scopeId             String   @db.ObjectId
+  summary             Json     // KPIs: totalTasks, completedTasks, overdueTasks, completionRate, totalMeetings, meetingHoursTotal, productivityScore
+  taskBreakdown       Json     // { byStatus:[{status,count}], byPriority:[{priority,count}], recentlyCompleted, avgResolutionDays }
+  weeklyTaskBreakdown Json     // { byStatus:[{status,count}], byPriority:[{priority,count}], totalThisWeek, completedThisWeek }
+  meetingBreakdown    Json     // { byStatus:[{status,count}], avgDurationMinutes, totalHours, upcomingCount, participationRate }
+  trends              Json     // { taskCompletion:[{date,count}], meetingFrequency:[{date,count}] } — last 30 days
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ─── User Settings ───────────────────────────────────────────────────────────
+// One settings document per user. Auto-created with defaults on first access.
+model UserSettings {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique @db.ObjectId
+  notifications Json     // { taskReminders, meetingReminders, challengeUpdates, systemUpdates, frequency }
+  security      Json     // { twoFactorEnabled }
+  extensions    Json     // { floatingIcon, autoPinExtension, iconPosition }
+  account       Json     // { isActive, planId, billing: { billingName, billingAddress, billingPhone, paymentMethodId } }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── Device Sessions ─────────────────────────────────────────────────────────
+// Tracks active login sessions per user for the Security > Devices panel.
+model DeviceSession {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  name       String
+  type       String   @default("Desktop")
+  location   String?
+  lastActive DateTime @default(now())
+  isCurrent  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// ─── Invoices ────────────────────────────────────────────────────────────────
+model Invoice {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  amount    String
+  status    String   @default("Paid")
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+// ─── File Manager ────────────────────────────────────────────────────────────
+// Stores uploaded file metadata. Physical files live in uploads/files/.
+model FileManager {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  url       String
+  name      String
+  size      Int?
+  mimeType  String?
+  folder    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 

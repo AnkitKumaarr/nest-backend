@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventsGateway } from 'src/gateways/events.gateway';
 
 @Injectable()
 export class ActivityLogsService {
-  constructor(
-    private eventsGateway: EventsGateway,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // async log(
   //   userId: string,
@@ -45,31 +41,15 @@ export class ActivityLogsService {
   ) {
     const log = await prisma.activityLog.create({
       data: { userId, action, entity, entityId, details },
-      include: {
-        user: {
-          select: { fullName: true, companyId: true },
-        },
-      },
     });
-
-    if (log.user?.companyId) {
-      this.eventsGateway.sendToOrg(
-        log.user.companyId,
-        'NEW_ACTIVITY_LOG',
-        log,
-      );
-    }
 
     return log;
   }
 
   async findAll(userId: string, role: string) {
-    const filter = role === 'admin' ? {} : { userId };
+    const where = role === 'admin' ? {} : { userId };
     return this.prisma.activityLog.findMany({
-      where: filter,
-      include: {
-        user: { select: { fullName: true, email: true } },
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });

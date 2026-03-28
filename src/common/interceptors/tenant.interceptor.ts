@@ -7,9 +7,8 @@ export class TenantInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (user && user.orgId) {
-      // We attach the orgId to the request for easy access in controllers
-      request.orgId = user.orgId;
+    if (user && user.companyId) {
+      request.companyId = user.companyId;
     }
 
     return next.handle();
