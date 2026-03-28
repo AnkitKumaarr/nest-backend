@@ -24,6 +24,9 @@ import { LeaderModule } from './leader/leader.module';
 import { ColumnsModule } from './columns/columns.module';
 import { PriorityModule } from './priority/priority.module';
 import { StatusModule } from './status/status.module';
+import { TaskVisualsModule } from './task-visuals/task-visuals.module';
+import { MeetingVisualsModule } from './meeting-visuals/meeting-visuals.module';
+import { AnalyticsSnapshotModule } from './analytics-snapshot/analytics-snapshot.module';
 
 @Module({
   imports: [
@@ -51,6 +54,9 @@ import { StatusModule } from './status/status.module';
     ColumnsModule,
     PriorityModule,
     StatusModule,
+    TaskVisualsModule,
+    MeetingVisualsModule,
+    AnalyticsSnapshotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

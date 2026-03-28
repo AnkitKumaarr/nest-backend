@@ -7,6 +7,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateWeeklyTaskDto } from './dto/create-weekly-task.dto';
 import { UpdateWeeklyTaskDto } from './dto/update-weekly-task.dto';
 import { ListWeeklyTaskDto } from './dto/list-weekly-task.dto';
+import { TaskVisualsService } from '../task-visuals/task-visuals.service';
+import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
 
 const WEEK_SELECT = {
   id: true,
@@ -20,7 +22,11 @@ const WEEK_SELECT = {
 
 @Injectable()
 export class WeeklyTasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private taskVisuals: TaskVisualsService,
+    private analyticsSnapshot: AnalyticsSnapshotService,
+  ) {}
 
   async create(dto: CreateWeeklyTaskDto, userId: string, companyId?: string) {
     let weekId = dto.weekId;
@@ -52,7 +58,7 @@ export class WeeklyTasksService {
       throw new NotFoundException('Provide either weekId or dayId');
     }
 
-    return this.prisma.weekTask.create({
+    const task = await this.prisma.weekTask.create({
       data: {
         weekId,
         title: dto.title ?? null,
@@ -70,6 +76,12 @@ export class WeeklyTasksService {
       },
       include: { week: { select: WEEK_SELECT } },
     });
+
+    // Fire-and-forget: refresh individual visual and analytics snapshots
+    this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+
+    return task;
   }
 
   async findAll(dto: ListWeeklyTaskDto, userId: string, companyId?: string) {
@@ -149,11 +161,17 @@ export class WeeklyTasksService {
     if (dto.blocker !== undefined) data.blocker = dto.blocker;
     if (dto.assignedTo !== undefined) data.assignedTo = dto.assignedTo;
 
-    return this.prisma.weekTask.update({
+    const updated = await this.prisma.weekTask.update({
       where: { id: dto.id },
       data,
       include: { week: { select: WEEK_SELECT } },
     });
+
+    // Fire-and-forget
+    this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+
+    return updated;
   }
 
   async remove(taskId: string, userId: string) {
@@ -162,6 +180,11 @@ export class WeeklyTasksService {
     if (task.userId !== userId) throw new ForbiddenException('You can only delete your own tasks');
 
     await this.prisma.weekTask.delete({ where: { id: taskId } });
+
+    // Fire-and-forget
+    this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+
     return { message: 'Weekly task deleted successfully' };
   }
 }

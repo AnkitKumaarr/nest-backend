@@ -320,3 +320,56 @@ model Status {
   updatedAt DateTime @updatedAt
 }
 
+model TaskVisual {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique // e.g. "team_task_status_<teamId>" or "individual_priority_<userId>"
+  title     String
+  type      String   // task_status | priority | workload | completion_trend | overdue | productivity
+  mode      String   // individual | team
+  userId    String?  @db.ObjectId
+  teamId    String?  @db.ObjectId
+  chartType String
+  data      Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Meeting Visuals ────────────────────────────────────────────────────────
+// Stores pre-aggregated chart snapshots for meeting analytics.
+// Refreshed automatically whenever a meeting is created, updated, or deleted.
+// Types: meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
+model MeetingVisual {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique // "company_meeting_status_<companyId>" | "individual_frequency_<userId>"
+  title     String
+  type      String   // meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
+  mode      String   // individual | company
+  userId    String?  @db.ObjectId // set when mode = individual
+  companyId String?  @db.ObjectId // set when mode = company
+  chartType String
+  data      Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Analytics Snapshot ─────────────────────────────────────────────────────
+// One rich summary document per user / team / company.
+// Combines ProjectTask + WeekTask + Meeting data into a single detail-view payload.
+// This is the "detail panel" data shown when a user drills into any chart.
+// Refreshed on any task or meeting mutation.
+model AnalyticsSnapshot {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                 String   @unique // "snapshot_user_<userId>" | "snapshot_team_<teamId>" | "snapshot_company_<companyId>"
+  scope               String   // user | team | company
+  scopeId             String   @db.ObjectId
+  summary             Json     // KPIs: totalTasks, completedTasks, overdueTasks, completionRate, totalMeetings, meetingHoursTotal, productivityScore
+  taskBreakdown       Json     // { byStatus:[{status,count}], byPriority:[{priority,count}], recentlyCompleted, avgResolutionDays }
+  weeklyTaskBreakdown Json     // { byStatus:[{status,count}], byPriority:[{priority,count}], totalThisWeek, completedThisWeek }
+  meetingBreakdown    Json     // { byStatus:[{status,count}], avgDurationMinutes, totalHours, upcomingCount, participationRate }
+  trends              Json     // { taskCompletion:[{date,count}], meetingFrequency:[{date,count}] } — last 30 days
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+

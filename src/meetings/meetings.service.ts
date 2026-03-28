@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { ActivityLogsService } from 'src/activity-logs/activity-logs.service';
 import { EventsGateway } from 'src/gateways/events.gateway';
+import { MeetingVisualsService } from '../meeting-visuals/meeting-visuals.service';
+import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
 
 @Injectable()
 export class MeetingsService {
@@ -15,6 +17,8 @@ export class MeetingsService {
     private eventsGateway: EventsGateway,
     private prisma: PrismaService,
     private activityLogs: ActivityLogsService,
+    private meetingVisuals: MeetingVisualsService,
+    private analyticsSnapshot: AnalyticsSnapshotService,
   ) {}
 
   async create(dto: CreateMeetingDto, userId: string, orgId: string) {
@@ -62,6 +66,12 @@ export class MeetingsService {
     );
 
     this.eventsGateway.sendToOrg(orgId, 'MEETING_CREATED', meeting);
+
+    // Fire-and-forget: refresh snapshots
+    this.meetingVisuals.refreshCompanySnapshots(orgId).catch(() => null);
+    this.meetingVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+    this.analyticsSnapshot.refreshCompanySnapshot(orgId).catch(() => null);
 
     return meeting;
   }
@@ -122,6 +132,12 @@ export class MeetingsService {
       updatedMeeting,
     );
 
+    // Fire-and-forget: refresh snapshots
+    this.meetingVisuals.refreshCompanySnapshots(updatedMeeting.companyId).catch(() => null);
+    this.meetingVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+    this.analyticsSnapshot.refreshCompanySnapshot(updatedMeeting.companyId).catch(() => null);
+
     return updatedMeeting;
   }
 
@@ -142,7 +158,15 @@ export class MeetingsService {
       `Deleted meeting: ${meeting.title}`,
     );
 
-    return this.prisma.meeting.delete({ where: { id } });
+    const deleted = await this.prisma.meeting.delete({ where: { id } });
+
+    // Fire-and-forget: refresh snapshots
+    this.meetingVisuals.refreshCompanySnapshots(deleted.companyId).catch(() => null);
+    this.meetingVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+    this.analyticsSnapshot.refreshCompanySnapshot(deleted.companyId).catch(() => null);
+
+    return deleted;
   }
 
   async joinMeeting(meetingId: string, userId: string) {
@@ -181,6 +205,11 @@ export class MeetingsService {
       userId,
       message: `Someone joined ${meeting.title}`,
     });
+
+    // Fire-and-forget: participant change affects engagement visual
+    this.meetingVisuals.refreshCompanySnapshots(meeting.companyId).catch(() => null);
+    this.meetingVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
 
     return participant;
   }

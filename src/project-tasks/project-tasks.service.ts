@@ -8,10 +8,16 @@ import { CreateProjectTaskDto } from './dto/create-project-task.dto';
 import { ListTasksDto } from './dto/list-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { renderHtml, extractPreview } from '../common/utils/content.util';
+import { TaskVisualsService } from '../task-visuals/task-visuals.service';
+import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
 
 @Injectable()
 export class ProjectTasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private taskVisuals: TaskVisualsService,
+    private analyticsSnapshot: AnalyticsSnapshotService,
+  ) {}
 
   async create(dto: CreateProjectTaskDto, tokenCreatorId: string, tokenCompanyId: string) {
     // Get companyId from team if token doesn't carry it
@@ -100,6 +106,14 @@ export class ProjectTasksService {
       } as any,
     });
 
+    // Fire-and-forget: refresh snapshots for this team and affected user
+    this.taskVisuals.refreshTeamSnapshots(dto.teamId).catch(() => null);
+    this.analyticsSnapshot.refreshTeamSnapshot(dto.teamId).catch(() => null);
+    if (resolvedCreatorId) {
+      this.taskVisuals.refreshIndividualSnapshots(resolvedCreatorId).catch(() => null);
+      this.analyticsSnapshot.refreshUserSnapshot(resolvedCreatorId).catch(() => null);
+    }
+
     return { message: 'Task created successfully' };
   }
 
@@ -108,7 +122,8 @@ export class ProjectTasksService {
     const limit = dto.limit ?? 50;
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = {};
+    if (companyId) where.companyId = companyId;
     if (dto.teamId) where.teamId = dto.teamId;
     if (dto.status) where.status = dto.status;
     if (dto.taskId) where.id = dto.taskId;
@@ -139,8 +154,10 @@ export class ProjectTasksService {
   }
 
   async findOne(id: string, companyId: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const task = await this.prisma.projectTask.findFirst({
-      where: { id, companyId },
+      where,
       include: { comments: { where: { parentId: null }, orderBy: { createdAt: 'asc' }, include: { replies: true } } },
     });
     if (!task) throw new NotFoundException('Task not found');
@@ -153,9 +170,9 @@ export class ProjectTasksService {
     companyId: string,
     userPermissions: string[],
   ) {
-    const task = await this.prisma.projectTask.findFirst({
-      where: { id: dto.taskId, companyId },
-    });
+    const updateWhere: any = { id: dto.taskId };
+    if (companyId) updateWhere.companyId = companyId;
+    const task = await this.prisma.projectTask.findFirst({ where: updateWhere });
     if (!task) throw new NotFoundException('Task not found');
 
     const canEdit =
@@ -225,6 +242,12 @@ export class ProjectTasksService {
       } as any,
     });
 
+    // Fire-and-forget: refresh snapshots for this task's team and the acting user
+    this.taskVisuals.refreshTeamSnapshots(task.teamId).catch(() => null);
+    this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshot.refreshTeamSnapshot(task.teamId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+
     return { message: 'Task updated successfully' };
   }
 
@@ -234,9 +257,9 @@ export class ProjectTasksService {
     companyId: string,
     userPermissions: string[],
   ) {
-    const task = await this.prisma.projectTask.findFirst({
-      where: { id, companyId },
-    });
+    const removeWhere: any = { id };
+    if (companyId) removeWhere.companyId = companyId;
+    const task = await this.prisma.projectTask.findFirst({ where: removeWhere });
     if (!task) throw new NotFoundException('Task not found');
 
     const canDelete =
@@ -248,8 +271,16 @@ export class ProjectTasksService {
       throw new ForbiddenException('You do not have permission to delete this task');
     }
 
+    const { teamId, creatorId } = task;
     await this.prisma.comment.deleteMany({ where: { taskId: id } });
     await this.prisma.projectTask.delete({ where: { id } });
+
+    // Fire-and-forget: refresh snapshots after deletion
+    this.taskVisuals.refreshTeamSnapshots(teamId).catch(() => null);
+    this.taskVisuals.refreshIndividualSnapshots(creatorId).catch(() => null);
+    this.analyticsSnapshot.refreshTeamSnapshot(teamId).catch(() => null);
+    this.analyticsSnapshot.refreshUserSnapshot(creatorId).catch(() => null);
+
     return { message: 'Task deleted successfully' };
   }
 }
