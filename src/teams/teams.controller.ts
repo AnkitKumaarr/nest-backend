@@ -14,8 +14,8 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { ListTeamsDto } from './dto/list-teams.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+// import { RolesGuard } from '../auth/guards/roles.guard';
+// import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('teams')
 @UseGuards(CustomAuthGuard)
@@ -29,8 +29,8 @@ export class TeamsController {
   // ── Team CRUD ─────────────────────────────────────────────────────────────
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
   create(@Body() dto: CreateTeamDto, @Request() req) {
     return this.service.create(dto, this.getCompanyId(req));
   }
@@ -53,17 +53,16 @@ export class TeamsController {
   }
 
   @Put()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
   update(@Body() dto: UpdateTeamDto, @Request() req) {
     return this.service.update(dto.id, dto.name, this.getCompanyId(req));
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
   remove(@Param('id') id: string, @Request() req) {
     return this.service.remove(id, this.getCompanyId(req));
   }
-
 }

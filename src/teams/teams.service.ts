@@ -1,19 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamDto } from './dto/create-team.dto';
+import { TeamSnapshotService } from '../team-snapshot/team-snapshot.service';
 
 @Injectable()
 export class TeamsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamSnapshot: TeamSnapshotService,
+  ) {}
 
   async create(dto: CreateTeamDto, companyId: string) {
-    await this.prisma.team.create({
+    const team = await this.prisma.team.create({
       data: {
         name: dto.name,
-        companyId, // required by schema
+        ...(companyId ? { companyId } : {}),
         ...(dto.createdBy ? { createdBy: dto.createdBy } : {}),
       },
     });
+    this.teamSnapshot.refreshTeamSnapshots(team.id).catch(() => null);
     return { message: 'Team created successfully' };
   }
 
@@ -25,10 +30,8 @@ export class TeamsService {
     teamId?: string,
     filters?: { startDate?: string; endDate?: string },
   ) {
-    // if (!_companyId) return { data: [], meta: { page, limit, totalRecords: 0 } };
     const skip = (page - 1) * limit;
     const where: any = {};
-    // where.companyId = _companyId;
 
     if (userId) where.createdBy = { is: { userId } };
     if (teamId) where.id = teamId;
@@ -55,7 +58,6 @@ export class TeamsService {
   async findOne(id: string, _companyId: string) {
     const team = await this.prisma.team.findFirst({
       where: { id },
-      // where: { id, companyId: _companyId },
       include: { _count: { select: { teamMembers: true } } },
     });
     if (!team) throw new NotFoundException('Team not found');
@@ -63,15 +65,14 @@ export class TeamsService {
   }
 
   async update(id: string, name: string, _companyId: string) {
-    // const team = await this.prisma.team.findFirst({ where: { id, companyId: _companyId } });
     const team = await this.prisma.team.findFirst({ where: { id } });
     if (!team) throw new NotFoundException('Team not found');
     await this.prisma.team.update({ where: { id }, data: { name } });
+    this.teamSnapshot.refreshTeamSnapshots(id).catch(() => null);
     return { message: 'Team updated successfully' };
   }
 
   async remove(id: string, _companyId: string) {
-    // const team = await this.prisma.team.findFirst({ where: { id, companyId: _companyId } });
     const team = await this.prisma.team.findFirst({ where: { id } });
     if (!team) throw new NotFoundException('Team not found');
     await this.prisma.teamMember.deleteMany({ where: { teamId: id } });

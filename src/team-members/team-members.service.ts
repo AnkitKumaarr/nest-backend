@@ -1,38 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddTeamMembersDto, ListTeamMembersDto } from './dto/team-member.dto';
+import { TeamSnapshotService } from '../team-snapshot/team-snapshot.service';
 
 @Injectable()
 export class TeamMembersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly teamSnapshot: TeamSnapshotService,
+  ) {}
 
   async addMembers(dto: AddTeamMembersDto, companyId: string) {
-    const team = await this.prisma.team.findFirst({
-      where: { id: dto.teamId },
-      // where: { id: dto.teamId, companyId },
-    });
+    const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
     if (!team) throw new NotFoundException('Team not found');
 
     await this.prisma.teamMember.createMany({
       data: dto.members.map((name) => ({
         teamId: dto.teamId,
         teamName: team.name,
-        companyId, // required by schema
+        ...(companyId ? { companyId } : {}),
         name,
         ...(dto.createdBy ? { createdBy: dto.createdBy } : {}),
       })),
     });
 
+    this.teamSnapshot.refreshTeamSnapshots(dto.teamId).catch(() => null);
     return { message: `${dto.members.length} member(s) added to team` };
   }
 
   async listMembers(dto: ListTeamMembersDto, _companyId: string, userId: string) {
-    // if (!_companyId) return { data: [], meta: { page: dto.page, limit: dto.limit, totalRecords: 0 } };
-
-    const team = await this.prisma.team.findFirst({
-      where: { id: dto.teamId },
-      // where: { id: dto.teamId, companyId: _companyId },
-    });
+    const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
     if (!team) throw new NotFoundException('Team not found');
 
     const page = dto.page ?? 1;
@@ -57,13 +54,11 @@ export class TeamMembersService {
   }
 
   async removeMember(memberId: string, _companyId: string) {
-    const member = await this.prisma.teamMember.findFirst({
-      where: { id: memberId },
-      // where: { id: memberId, companyId: _companyId },
-    });
+    const member = await this.prisma.teamMember.findFirst({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
     await this.prisma.teamMember.delete({ where: { id: memberId } });
+    this.teamSnapshot.refreshTeamSnapshots(member.teamId).catch(() => null);
     return { message: 'Member removed from team' };
   }
 }

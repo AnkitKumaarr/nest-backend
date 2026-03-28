@@ -8,11 +8,11 @@ export class AnalyticsSnapshotController {
   constructor(private readonly analyticsSnapshotService: AnalyticsSnapshotService) {}
 
   /**
-   * GET /api/analytics-snapshot/me
+   * GET /api/analytics-snapshot
    * Full detail-view snapshot for the logged-in user.
    * Combines project tasks + weekly tasks + meetings.
    */
-  @Get('me')
+  @Get()
   getMySnapshot(@Request() req) {
     return this.analyticsSnapshotService.getUserSnapshot(req.user.sub);
   }

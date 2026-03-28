@@ -10,8 +10,8 @@ import {
 import { TeamMembersService } from './team-members.service';
 import { AddTeamMembersDto, ListTeamMembersDto } from './dto/team-member.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
-import { Permissions } from '../common/decorators/permissions.decorator';
+// import { PermissionsGuard } from '../common/guards/permissions.guard';
+// import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('team-members')
 @UseGuards(CustomAuthGuard)
@@ -23,8 +23,8 @@ export class TeamMembersController {
   }
 
   @Post()
-  @UseGuards(PermissionsGuard)
-  @Permissions('team:manage-members')
+  // @UseGuards(PermissionsGuard)
+  // @Permissions('team:manage-members')
   addMembers(@Body() dto: AddTeamMembersDto, @Request() req) {
     return this.service.addMembers(dto, this.getCompanyId(req));
   }
@@ -35,8 +35,8 @@ export class TeamMembersController {
   }
 
   @Delete(':id')
-  @UseGuards(PermissionsGuard)
-  @Permissions('team:manage-members')
+  // @UseGuards(PermissionsGuard)
+  // @Permissions('team:manage-members')
   removeMember(@Param('id') id: string, @Request() req) {
     return this.service.removeMember(id, this.getCompanyId(req));
   }
