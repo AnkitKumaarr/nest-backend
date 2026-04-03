@@ -45,9 +45,9 @@ export class LeaderService {
       teamIds.map(async (teamId) => {
         const [total, done, inProgress, review] = await Promise.all([
           this.prisma.projectTask.count({ where: { teamId, companyId } }),
-          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
-          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'IN_PROGRESS' } }),
-          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'REVIEW' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'DONE' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'IN_PROGRESS' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'REVIEW' } }),
         ]);
         return {
           teamId,
@@ -79,18 +79,18 @@ export class LeaderService {
 
     const [total, done, tasks] = await Promise.all([
       this.prisma.projectTask.count({ where }),
-      this.prisma.projectTask.count({ where: { ...where, status: 'DONE' } }),
+      this.prisma.projectTask.count({ where: { ...where, statusName: 'DONE' } }),
       this.prisma.projectTask.findMany({
-        where: { ...where, status: 'DONE', inchargeId: { not: null } },
-        select: { inchargeId: true },
+        where: { ...where, statusName: 'DONE', inChargeId: { not: null } },
+        select: { inChargeId: true },
       }),
     ]);
 
     // Count completed tasks per incharge
     const performerMap: Record<string, number> = {};
     for (const t of tasks) {
-      if (t.inchargeId) {
-        performerMap[t.inchargeId] = (performerMap[t.inchargeId] ?? 0) + 1;
+      if (t.inChargeId) {
+        performerMap[t.inChargeId] = (performerMap[t.inChargeId] ?? 0) + 1;
       }
     }
 
@@ -114,7 +114,7 @@ export class LeaderService {
       teamIds.map(async (teamId) => {
         const [t, d] = await Promise.all([
           this.prisma.projectTask.count({ where: { teamId, companyId } }),
-          this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
+          this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'DONE' } }),
         ]);
         return {
           teamId,
@@ -141,22 +141,22 @@ export class LeaderService {
 
     const [total, done, inProgress, review, todo, members] = await Promise.all([
       this.prisma.projectTask.count({ where: { teamId, companyId } }),
-      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'DONE' } }),
-      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'IN_PROGRESS' } }),
-      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'REVIEW' } }),
-      this.prisma.projectTask.count({ where: { teamId, companyId, status: 'TODO' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'DONE' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'IN_PROGRESS' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'REVIEW' } }),
+      this.prisma.projectTask.count({ where: { teamId, companyId, statusName: 'TODO' } }),
       this.prisma.teamMember.count({ where: { teamId } }),
     ]);
 
     const doneTasks = await this.prisma.projectTask.findMany({
-      where: { teamId, companyId, status: 'DONE', inchargeId: { not: null } },
-      select: { inchargeId: true },
+      where: { teamId, companyId, statusName: 'DONE', inChargeId: { not: null } },
+      select: { inChargeId: true },
     });
 
     const performerMap: Record<string, number> = {};
     for (const t of doneTasks) {
-      if (t.inchargeId) {
-        performerMap[t.inchargeId] = (performerMap[t.inchargeId] ?? 0) + 1;
+      if (t.inChargeId) {
+        performerMap[t.inChargeId] = (performerMap[t.inChargeId] ?? 0) + 1;
       }
     }
 

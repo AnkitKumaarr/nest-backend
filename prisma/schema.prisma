@@ -193,14 +193,12 @@ model ProjectTask {
   title       String
   creatorId   String               @db.ObjectId
   creatorName String?
-  inchargeId  String?              @db.ObjectId
-  inchargeName String?
+  inChargeId   String?              @db.ObjectId @map("inchargeId")
+  inChargeName String?              @map("inchargeName")
   teamId      String               @db.ObjectId
   team        Team                 @relation(fields: [teamId], references: [id])
   companyId   String               @db.ObjectId
   company     Company              @relation(fields: [companyId], references: [id])
-  priority    String               @default("MEDIUM")
-  status      String               @default("TODO")
   logTime     String?
   columnId       String?              @db.ObjectId
   columnName     String?
@@ -210,7 +208,13 @@ model ProjectTask {
   taskContent    Json?
   renderedHtml   String?
   contentPreview String?
-  dueDate     DateTime?
+  statusId     String?
+  statusName   String?
+  priorityId   String?
+  priorityName String?
+  teamName     String?
+  dueDate      DateTime?
+  position     Float?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 

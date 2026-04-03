@@ -66,7 +66,7 @@ export class ListTasksDto {
 
   @IsOptional()
   @IsString()
-  status?: string;
+  statusName?: string;
 
   @IsOptional()
   @IsInt()

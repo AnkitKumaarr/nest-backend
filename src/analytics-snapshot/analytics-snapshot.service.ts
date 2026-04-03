@@ -66,7 +66,7 @@ export class AnalyticsSnapshotService {
   // ─── Compute: User ────────────────────────────────────────────────────────
 
   private async computeUserSnapshot(userId: string) {
-    const taskWhere = { OR: [{ creatorId: userId }, { assignedUserId: userId }, { inchargeId: userId }] };
+    const taskWhere = { OR: [{ creatorId: userId }, { assignedUserId: userId }, { inChargeId: userId }] };
     const meetingWhere = { OR: [{ createdBy: userId }, { participants: { some: { userId } } }] };
 
     const [
@@ -79,24 +79,24 @@ export class AnalyticsSnapshotService {
       taskTrend,
       meetingTrend,
     ] = await Promise.all([
-      this.prisma.projectTask.groupBy({ by: ['status'], where: taskWhere, _count: { id: true } }),
-      this.prisma.projectTask.groupBy({ by: ['priority'], where: taskWhere, _count: { id: true } }),
+      this.prisma.projectTask.groupBy({ by: ['statusName'], where: taskWhere, _count: { _all: true } }),
+      this.prisma.projectTask.groupBy({ by: ['priorityName'], where: taskWhere, _count: { _all: true } }),
       this.prisma.weekTask.groupBy({ by: ['status'], where: { userId }, _count: { id: true } }),
       this.prisma.weekTask.groupBy({ by: ['priority'], where: { userId }, _count: { id: true } }),
       this.prisma.meeting.findMany({ where: meetingWhere, select: { startTime: true, endTime: true, status: true } }),
-      this.prisma.projectTask.count({ where: { ...taskWhere, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
-      this.prisma.projectTask.findMany({ where: { ...taskWhere, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
+      this.prisma.projectTask.count({ where: { ...taskWhere, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
+      this.prisma.projectTask.findMany({ where: { ...taskWhere, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
       this.prisma.meeting.findMany({ where: { ...meetingWhere, startTime: { gte: this.daysAgo(30) } }, select: { startTime: true } }),
     ]);
 
-    const totalTasks   = taskByStatus.reduce((a, s) => a + s._count.id, 0);
-    const completed    = taskByStatus.find((s) => s.status === 'COMPLETED')?._count.id ?? 0;
-    const overdue      = await this.prisma.projectTask.count({ where: { ...taskWhere, dueDate: { lt: new Date() }, NOT: { status: 'COMPLETED' } } });
+    const totalTasks   = taskByStatus.reduce((a, s) => a + s._count._all, 0);
+    const completed    = taskByStatus.find((s) => s.statusName === 'COMPLETED')?._count._all ?? 0;
+    const overdue      = await this.prisma.projectTask.count({ where: { ...taskWhere, dueDate: { lt: new Date() }, NOT: { statusName: 'COMPLETED' } } });
     const { totalHours, avgDuration, byStatus: meetingByStatus } = this.computeMeetingStats(meetings);
     const upcomingMeetings = meetings.filter((m) => m.startTime > new Date() && m.status !== 'cancelled').length;
 
-    const totalWeekly    = weeklyByStatus.reduce((a, s) => a + s._count.id, 0);
-    const completedWeekly = weeklyByStatus.find((s) => ['done', 'COMPLETED', 'completed'].includes(s.status))?._count.id ?? 0;
+    const totalWeekly    = weeklyByStatus.reduce((a, s) => a + (s._count as any).id, 0);
+    const completedWeekly = weeklyByStatus.find((s) => ['done', 'COMPLETED', 'completed'].includes(s.status))?._count as any;
 
     return {
       key: this.userKey(userId),
@@ -106,12 +106,12 @@ export class AnalyticsSnapshotService {
         totalProjectTasks: totalTasks,
         completedProjectTasks: completed,
         overdueProjectTasks: overdue,
-        inProgressProjectTasks: taskByStatus.find((s) => s.status === 'IN_PROGRESS')?._count.id ?? 0,
+        inProgressProjectTasks: taskByStatus.find((s) => s.statusName === 'IN_PROGRESS')?._count._all ?? 0,
         completionRate: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0,
         overdueRate: totalTasks > 0 ? Math.round((overdue / totalTasks) * 100) : 0,
         recentlyCompletedLast7Days: recentCompleted,
         totalWeeklyTasks: totalWeekly,
-        completedWeeklyTasks: completedWeekly,
+        completedWeeklyTasks: completedWeekly?.id ?? 0,
         totalMeetings: meetings.length,
         upcomingMeetings,
         meetingHoursTotal: totalHours,
@@ -119,16 +119,16 @@ export class AnalyticsSnapshotService {
         productivityScore: this.productivityScore(completed, totalTasks, overdue, avgDuration),
       },
       taskBreakdown: {
-        byStatus: taskByStatus.map((s) => ({ status: s.status, count: s._count.id })),
-        byPriority: taskByPriority.map((p) => ({ priority: p.priority, count: p._count.id })),
+        byStatus: taskByStatus.map((s) => ({ status: s.statusName, count: s._count._all })),
+        byPriority: taskByPriority.map((p) => ({ priority: p.priorityName, count: p._count._all })),
         recentlyCompleted: recentCompleted,
         avgResolutionDays: await this.avgResolutionDays(taskWhere),
       },
       weeklyTaskBreakdown: {
-        byStatus: weeklyByStatus.map((s) => ({ status: s.status, count: s._count.id })),
-        byPriority: weeklyByPriority.map((p) => ({ priority: p.priority, count: p._count.id })),
+        byStatus: weeklyByStatus.map((s) => ({ status: s.status, count: (s._count as any).id })),
+        byPriority: weeklyByPriority.map((p) => ({ priority: p.priority, count: (p._count as any).id })),
         totalThisWeek: totalWeekly,
-        completedThisWeek: completedWeekly,
+        completedThisWeek: completedWeekly?.id ?? 0,
       },
       meetingBreakdown: {
         byStatus: meetingByStatus,
@@ -155,16 +155,16 @@ export class AnalyticsSnapshotService {
       overdue,
       taskTrend,
     ] = await Promise.all([
-      this.prisma.projectTask.groupBy({ by: ['status'], where: { teamId }, _count: { id: true } }),
-      this.prisma.projectTask.groupBy({ by: ['priority'], where: { teamId }, _count: { id: true } }),
-      this.prisma.projectTask.groupBy({ by: ['inchargeId', 'inchargeName'], where: { teamId, NOT: { inchargeId: null } }, _count: { id: true }, orderBy: { _count: { id: 'desc' } } }),
-      this.prisma.projectTask.count({ where: { teamId, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
-      this.prisma.projectTask.count({ where: { teamId, dueDate: { lt: new Date() }, NOT: { status: 'COMPLETED' } } }),
-      this.prisma.projectTask.findMany({ where: { teamId, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
+      this.prisma.projectTask.groupBy({ by: ['statusName'], where: { teamId }, _count: { _all: true } }),
+      this.prisma.projectTask.groupBy({ by: ['priorityName'], where: { teamId }, _count: { _all: true } }),
+      this.prisma.projectTask.groupBy({ by: ['inChargeId', 'inChargeName'], where: { teamId, NOT: { inChargeId: null } }, _count: { _all: true }, orderBy: { _count: { inChargeId: 'desc' } } }),
+      this.prisma.projectTask.count({ where: { teamId, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
+      this.prisma.projectTask.count({ where: { teamId, dueDate: { lt: new Date() }, NOT: { statusName: 'COMPLETED' } } }),
+      this.prisma.projectTask.findMany({ where: { teamId, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
     ]);
 
-    const totalTasks = taskByStatus.reduce((a, s) => a + s._count.id, 0);
-    const completed  = taskByStatus.find((s) => s.status === 'COMPLETED')?._count.id ?? 0;
+    const totalTasks = taskByStatus.reduce((a, s) => a + s._count._all, 0);
+    const completed  = taskByStatus.find((s) => s.statusName === 'COMPLETED')?._count._all ?? 0;
 
     return {
       key: this.teamKey(teamId),
@@ -174,7 +174,7 @@ export class AnalyticsSnapshotService {
         totalProjectTasks: totalTasks,
         completedProjectTasks: completed,
         overdueProjectTasks: overdue,
-        inProgressProjectTasks: taskByStatus.find((s) => s.status === 'IN_PROGRESS')?._count.id ?? 0,
+        inProgressProjectTasks: taskByStatus.find((s) => s.statusName === 'IN_PROGRESS')?._count._all ?? 0,
         completionRate: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0,
         overdueRate: totalTasks > 0 ? Math.round((overdue / totalTasks) * 100) : 0,
         recentlyCompletedLast7Days: recentCompleted,
@@ -187,11 +187,11 @@ export class AnalyticsSnapshotService {
         productivityScore: this.productivityScore(completed, totalTasks, overdue, 0),
       },
       taskBreakdown: {
-        byStatus: taskByStatus.map((s) => ({ status: s.status, count: s._count.id })),
-        byPriority: taskByPriority.map((p) => ({ priority: p.priority, count: p._count.id })),
+        byStatus: taskByStatus.map((s) => ({ status: s.statusName, count: s._count._all })),
+        byPriority: taskByPriority.map((p) => ({ priority: p.priorityName, count: p._count._all })),
         recentlyCompleted: recentCompleted,
         avgResolutionDays: await this.avgResolutionDays({ teamId }),
-        workloadPerMember: workload.map((w) => ({ name: w.inchargeName ?? 'Unknown', count: w._count.id })),
+        workloadPerMember: workload.map((w) => ({ name: w.inChargeName ?? 'Unknown', count: w._count._all })),
       },
       weeklyTaskBreakdown: { byStatus: [], byPriority: [], totalThisWeek: 0, completedThisWeek: 0 },
       meetingBreakdown: { byStatus: [], avgDurationMinutes: 0, totalHours: 0, upcomingCount: 0, participationRate: 0 },
@@ -215,23 +215,23 @@ export class AnalyticsSnapshotService {
       taskTrend,
       meetingTrend,
     ] = await Promise.all([
-      this.prisma.projectTask.groupBy({ by: ['status'], where: { companyId }, _count: { id: true } }),
-      this.prisma.projectTask.groupBy({ by: ['priority'], where: { companyId }, _count: { id: true } }),
+      this.prisma.projectTask.groupBy({ by: ['statusName'], where: { companyId }, _count: { _all: true } }),
+      this.prisma.projectTask.groupBy({ by: ['priorityName'], where: { companyId }, _count: { _all: true } }),
       this.prisma.meeting.findMany({ where: { companyId }, select: { startTime: true, endTime: true, status: true } }),
       this.prisma.weekTask.groupBy({ by: ['status'], where: { companyId }, _count: { id: true } }),
-      this.prisma.projectTask.count({ where: { companyId, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
-      this.prisma.projectTask.count({ where: { companyId, dueDate: { lt: new Date() }, NOT: { status: 'COMPLETED' } } }),
-      this.prisma.projectTask.findMany({ where: { companyId, status: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
+      this.prisma.projectTask.count({ where: { companyId, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(7) } } }),
+      this.prisma.projectTask.count({ where: { companyId, dueDate: { lt: new Date() }, NOT: { statusName: 'COMPLETED' } } }),
+      this.prisma.projectTask.findMany({ where: { companyId, statusName: 'COMPLETED', updatedAt: { gte: this.daysAgo(30) } }, select: { updatedAt: true } }),
       this.prisma.meeting.findMany({ where: { companyId, startTime: { gte: this.daysAgo(30) } }, select: { startTime: true } }),
     ]);
 
-    const totalTasks = taskByStatus.reduce((a, s) => a + s._count.id, 0);
-    const completed  = taskByStatus.find((s) => s.status === 'COMPLETED')?._count.id ?? 0;
+    const totalTasks = taskByStatus.reduce((a, s) => a + s._count._all, 0);
+    const completed  = taskByStatus.find((s) => s.statusName === 'COMPLETED')?._count._all ?? 0;
     const { totalHours, avgDuration, byStatus: meetingByStatus } = this.computeMeetingStats(meetings);
     const upcomingMeetings = meetings.filter((m) => m.startTime > new Date() && m.status !== 'cancelled').length;
 
-    const totalWeekly     = weeklyByStatus.reduce((a, s) => a + s._count.id, 0);
-    const completedWeekly = weeklyByStatus.find((s) => ['done', 'COMPLETED', 'completed'].includes(s.status))?._count.id ?? 0;
+    const totalWeekly     = weeklyByStatus.reduce((a, s) => a + (s._count as any).id, 0);
+    const completedWeekly = weeklyByStatus.find((s) => ['done', 'COMPLETED', 'completed'].includes(s.status))?._count as any;
 
     return {
       key: this.companyKey(companyId),
@@ -241,12 +241,12 @@ export class AnalyticsSnapshotService {
         totalProjectTasks: totalTasks,
         completedProjectTasks: completed,
         overdueProjectTasks: overdue,
-        inProgressProjectTasks: taskByStatus.find((s) => s.status === 'IN_PROGRESS')?._count.id ?? 0,
+        inProgressProjectTasks: taskByStatus.find((s) => s.statusName === 'IN_PROGRESS')?._count._all ?? 0,
         completionRate: totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0,
         overdueRate: totalTasks > 0 ? Math.round((overdue / totalTasks) * 100) : 0,
         recentlyCompletedLast7Days: recentCompleted,
         totalWeeklyTasks: totalWeekly,
-        completedWeeklyTasks: completedWeekly,
+        completedWeeklyTasks: completedWeekly?.id ?? 0,
         totalMeetings: meetings.length,
         upcomingMeetings,
         meetingHoursTotal: totalHours,
@@ -254,16 +254,16 @@ export class AnalyticsSnapshotService {
         productivityScore: this.productivityScore(completed, totalTasks, overdue, avgDuration),
       },
       taskBreakdown: {
-        byStatus: taskByStatus.map((s) => ({ status: s.status, count: s._count.id })),
-        byPriority: taskByPriority.map((p) => ({ priority: p.priority, count: p._count.id })),
+        byStatus: taskByStatus.map((s) => ({ status: s.statusName, count: s._count._all })),
+        byPriority: taskByPriority.map((p) => ({ priority: p.priorityName, count: p._count._all })),
         recentlyCompleted: recentCompleted,
         avgResolutionDays: await this.avgResolutionDays({ companyId }),
       },
       weeklyTaskBreakdown: {
-        byStatus: weeklyByStatus.map((s) => ({ status: s.status, count: s._count.id })),
+        byStatus: weeklyByStatus.map((s) => ({ status: s.status, count: (s._count as any).id })),
         byPriority: [],
         totalThisWeek: totalWeekly,
-        completedThisWeek: completedWeekly,
+        completedThisWeek: completedWeekly?.id ?? 0,
       },
       meetingBreakdown: {
         byStatus: meetingByStatus,
@@ -313,7 +313,7 @@ export class AnalyticsSnapshotService {
 
   private async avgResolutionDays(where: any): Promise<number> {
     const tasks = await this.prisma.projectTask.findMany({
-      where: { ...where, status: 'COMPLETED', createdAt: { gte: this.daysAgo(90) } },
+      where: { ...where, statusName: 'COMPLETED', createdAt: { gte: this.daysAgo(90) } },
       select: { createdAt: true, updatedAt: true },
     });
     if (!tasks.length) return 0;

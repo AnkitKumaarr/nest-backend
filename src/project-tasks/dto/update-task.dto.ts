@@ -1,12 +1,11 @@
 import {
   IsDateString,
-  IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
-import { TaskPriority, TaskStatus } from './create-project-task.dto';
 
 export class UpdateTaskDto {
   @IsNotEmpty()
@@ -23,15 +22,23 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsString()
-  inchargeId?: string;
+  inChargeId?: string;
 
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @IsString()
+  priorityId?: string;
 
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @IsString()
+  priorityName?: string;
+
+  @IsOptional()
+  @IsString()
+  statusId?: string;
+
+  @IsOptional()
+  @IsString()
+  statusName?: string;
 
   // Accepted formats: "2h 30mins", "2 hours 30 mins", "2 days", "2days"
   @IsOptional()
@@ -43,6 +50,14 @@ export class UpdateTaskDto {
   taskContent?: object;
 
   @IsOptional()
+  @IsString()
+  renderedHtml?: string;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  position?: number;
 }

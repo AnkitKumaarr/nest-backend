@@ -153,7 +153,7 @@ export class TeamSnapshotService {
 
   private async computeTaskStatus(teamId: string) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['status'],
+      by: ['statusName'],
       where: { teamId },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
@@ -162,8 +162,8 @@ export class TeamSnapshotService {
       title: 'Team Task Status',
       chartType: 'bar',
       data: {
-        labels: groups.map((g) => g.status),
-        datasets: [{ label: 'Tasks', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.statusName || 'Unknown'),
+        datasets: [{ label: 'Tasks', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
@@ -173,7 +173,7 @@ export class TeamSnapshotService {
 
   private async computeTaskPriority(teamId: string) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['priority'],
+      by: ['priorityName'],
       where: { teamId },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
@@ -182,8 +182,8 @@ export class TeamSnapshotService {
       title: 'Team Task Priority Breakdown',
       chartType: 'pie',
       data: {
-        labels: groups.map((g) => g.priority),
-        datasets: [{ label: 'Tasks by Priority', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.priorityName || 'Unknown'),
+        datasets: [{ label: 'Tasks by Priority', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
@@ -193,8 +193,8 @@ export class TeamSnapshotService {
 
   private async computeWorkload(teamId: string) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['inchargeId', 'inchargeName'],
-      where: { teamId, NOT: [{ inchargeId: null }, { status: 'COMPLETED' }] },
+      by: ['inChargeId', 'inChargeName'],
+      where: { teamId, NOT: [{ inChargeId: null }, { statusName: 'COMPLETED' }] },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     });
@@ -202,8 +202,8 @@ export class TeamSnapshotService {
       title: 'Team Workload Distribution',
       chartType: 'bar',
       data: {
-        labels: groups.map((g) => g.inchargeName ?? 'Unassigned'),
-        datasets: [{ label: 'Open Tasks', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.inChargeName ?? 'Unassigned'),
+        datasets: [{ label: 'Open Tasks', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
@@ -215,7 +215,7 @@ export class TeamSnapshotService {
     const tasks = await this.prisma.projectTask.findMany({
       where: {
         teamId,
-        status: 'COMPLETED',
+        statusName: 'COMPLETED',
         updatedAt: { gte: daysAgo(30) },
       },
       select: { updatedAt: true },

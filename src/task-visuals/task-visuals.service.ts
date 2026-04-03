@@ -200,7 +200,7 @@ export class TaskVisualsService {
 
   private async aggregateIndividual(type: VisualType, userId: string, dto: GetVisualDto) {
     const base = this.buildBaseFilter(dto, {
-      OR: [{ creatorId: userId }, { assignedUserId: userId }, { inchargeId: userId }],
+      OR: [{ creatorId: userId }, { assignedUserId: userId }, { inChargeId: userId }],
     });
 
     switch (type) {
@@ -221,7 +221,7 @@ export class TaskVisualsService {
 
   private async teamTaskStatus(teamId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['status'],
+      by: ['statusName'],
       where,
       _count: { id: true },
     });
@@ -230,15 +230,15 @@ export class TaskVisualsService {
       title: 'Team Task Status Overview',
       chartType: 'bar',
       data: {
-        labels: all.map((g) => g.status),
-        datasets: [{ label: 'Team Tasks', data: all.map((g) => g._count.id) }],
+        labels: all.map((g) => g.statusName || 'Unknown'),
+        datasets: [{ label: 'Team Tasks', data: all.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
 
   private async teamPriority(teamId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['priority'],
+      by: ['priorityName'],
       where,
       _count: { id: true },
     });
@@ -246,24 +246,24 @@ export class TaskVisualsService {
       title: 'Team Task Priority Breakdown',
       chartType: 'pie',
       data: {
-        labels: groups.map((g) => g.priority),
-        datasets: [{ label: 'Tasks by Priority', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.priorityName || 'Unknown'),
+        datasets: [{ label: 'Tasks by Priority', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
 
   private async teamWorkload(teamId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['inchargeId', 'inchargeName'],
-      where: { ...where, NOT: { inchargeId: null } },
+      by: ['inChargeId', 'inChargeName'],
+      where: { ...where, NOT: { inChargeId: null } },
       _count: { id: true },
     });
     return {
       title: 'Team Workload Distribution',
       chartType: 'stacked_bar',
       data: {
-        labels: groups.map((g) => g.inchargeName ?? 'Unknown'),
-        datasets: [{ label: 'Assigned Tasks', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.inChargeName ?? 'Unknown'),
+        datasets: [{ label: 'Assigned Tasks', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
@@ -273,9 +273,9 @@ export class TaskVisualsService {
     const tasks = await this.prisma.projectTask.findMany({
       where: {
         teamId,
-        status: 'COMPLETED',
+        statusName: 'COMPLETED',
         ...(dateFilter && { updatedAt: dateFilter }),
-        ...(dto.priority?.length && { priority: { in: dto.priority } }),
+        ...(dto.priority?.length && { priorityName: { in: dto.priority } }),
       },
       select: { updatedAt: true },
       orderBy: { updatedAt: 'asc' },
@@ -293,10 +293,10 @@ export class TaskVisualsService {
 
   private async teamOverdue(teamId: string, where: any) {
     const tasks = await this.prisma.projectTask.findMany({
-      where: { ...where, dueDate: { lt: new Date() }, NOT: { status: 'COMPLETED' } },
-      select: { priority: true },
+      where: { ...where, dueDate: { lt: new Date() }, NOT: { statusName: 'COMPLETED' } },
+      select: { priorityName: true },
     });
-    const byPriority = this.countByField(tasks, 'priority');
+    const byPriority = this.countByField(tasks, 'priorityName');
     return {
       title: 'Team Overdue Tasks',
       chartType: 'bar',
@@ -310,8 +310,8 @@ export class TaskVisualsService {
 
   private async teamProductivity(teamId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['inchargeId', 'inchargeName'],
-      where: { ...where, status: 'COMPLETED', NOT: { inchargeId: null } },
+      by: ['inChargeId', 'inChargeName'],
+      where: { ...where, statusName: 'COMPLETED', NOT: { inChargeId: null } },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     });
@@ -319,15 +319,15 @@ export class TaskVisualsService {
       title: 'Team Productivity',
       chartType: 'bar',
       data: {
-        labels: groups.map((g) => g.inchargeName ?? 'Unknown'),
-        datasets: [{ label: 'Completed Tasks', data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.inChargeName ?? 'Unknown'),
+        datasets: [{ label: 'Completed Tasks', data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
 
   private async individualTaskStatus(userId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['status'],
+      by: ['statusName'],
       where,
       _count: { id: true },
     });
@@ -336,15 +336,15 @@ export class TaskVisualsService {
       title: 'My Task Status Overview',
       chartType: 'doughnut',
       data: {
-        labels: all.map((g) => g.status),
-        datasets: [{ data: all.map((g) => g._count.id) }],
+        labels: all.map((g) => g.statusName || 'Unknown'),
+        datasets: [{ data: all.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
 
   private async individualPriority(userId: string, where: any) {
     const groups = await this.prisma.projectTask.groupBy({
-      by: ['priority'],
+      by: ['priorityName'],
       where,
       _count: { id: true },
     });
@@ -352,8 +352,8 @@ export class TaskVisualsService {
       title: 'My Task Priority Breakdown',
       chartType: 'pie',
       data: {
-        labels: groups.map((g) => g.priority),
-        datasets: [{ data: groups.map((g) => g._count.id) }],
+        labels: groups.map((g) => g.priorityName || 'Unknown'),
+        datasets: [{ data: groups.map((g) => (g._count as any).id || 0) }],
       },
     };
   }
@@ -362,8 +362,8 @@ export class TaskVisualsService {
     const dateFilter = this.getDateFilter(dto) ?? this.getDateFilter({ dateRange: 'weekly' });
     const tasks = await this.prisma.projectTask.findMany({
       where: {
-        OR: [{ creatorId: userId }, { assignedUserId: userId }, { inchargeId: userId }],
-        status: 'COMPLETED',
+        OR: [{ creatorId: userId }, { assignedUserId: userId }, { inChargeId: userId }],
+        statusName: 'COMPLETED',
         ...(dateFilter && { updatedAt: dateFilter }),
       },
       select: { updatedAt: true },
@@ -382,10 +382,10 @@ export class TaskVisualsService {
 
   private async individualOverdue(userId: string, where: any) {
     const tasks = await this.prisma.projectTask.findMany({
-      where: { ...where, dueDate: { lt: new Date() }, NOT: { status: 'COMPLETED' } },
-      select: { priority: true },
+      where: { ...where, dueDate: { lt: new Date() }, NOT: { statusName: 'COMPLETED' } },
+      select: { priorityName: true },
     });
-    const byPriority = this.countByField(tasks, 'priority');
+    const byPriority = this.countByField(tasks, 'priorityName');
     return {
       title: 'My Overdue Tasks',
       chartType: 'bar',
@@ -430,15 +430,15 @@ export class TaskVisualsService {
     return {
       ...extra,
       ...(dateFilter && { createdAt: dateFilter }),
-      ...(dto.priority?.length && { priority: { in: dto.priority } }),
-      ...(dto.status?.length && { status: { in: dto.status } }),
+      ...(dto.priority?.length && { priorityName: { in: dto.priority } }),
+      ...(dto.status?.length && { statusName: { in: dto.status } }),
     };
   }
 
-  private sortStatuses<T extends { status: string }>(groups: T[]): T[] {
+  private sortStatuses<T extends { statusName?: string | null; _count?: any }>(groups: T[]): T[] {
     const order = ['TODO', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE'];
-    const sorted = order.map((s) => groups.find((g) => g.status === s)).filter(Boolean) as T[];
-    const rest = groups.filter((g) => !order.includes(g.status));
+    const sorted = order.map((s) => groups.find((g) => g.statusName === s)).filter(Boolean) as T[];
+    const rest = groups.filter((g) => !order.includes(g.statusName || ''));
     return [...sorted, ...rest];
   }
 

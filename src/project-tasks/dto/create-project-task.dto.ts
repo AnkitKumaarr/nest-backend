@@ -1,24 +1,10 @@
 import {
   IsDateString,
-  IsEnum,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
-
-export enum TaskPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-}
-
-export enum TaskStatus {
-  TODO = 'TODO',
-  IN_PROGRESS = 'IN_PROGRESS',
-  REVIEW = 'REVIEW',
-  DONE = 'DONE',
-}
 
 export class CreateProjectTaskDto {
   @IsNotEmpty()
@@ -47,19 +33,31 @@ export class CreateProjectTaskDto {
 
   @IsOptional()
   @IsString()
-  inchargeId?: string;
+  inChargeId?: string;
 
   @IsOptional()
   @IsString()
-  inchargeName?: string;
+  inChargeName?: string;
 
   @IsOptional()
-  @IsEnum(TaskPriority)
-  priority?: TaskPriority;
+  @IsString()
+  priorityId?: string;
 
   @IsOptional()
-  @IsEnum(TaskStatus)
-  status?: TaskStatus;
+  @IsString()
+  priorityName?: string;
+
+  @IsOptional()
+  @IsString()
+  statusId?: string;
+
+  @IsOptional()
+  @IsString()
+  statusName?: string;
+
+  @IsOptional()
+  @IsString()
+  teamName?: string;
 
   // Accepted formats: "2h 30mins", "2 hours 30 mins", "2 days", "2days"
   @IsOptional()
@@ -69,6 +67,10 @@ export class CreateProjectTaskDto {
   @IsOptional()
   @IsObject()
   taskContent?: object;
+
+  @IsOptional()
+  @IsString()
+  renderedHtml?: string;
 
   @IsOptional()
   @IsDateString()

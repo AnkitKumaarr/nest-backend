@@ -39,7 +39,7 @@ class ParticipantsQueryDto {
   limit?: number = 50;
 }
 
-@Controller('api/users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 

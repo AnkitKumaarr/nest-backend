@@ -20,14 +20,18 @@ export class ProjectTasksService {
   ) {}
 
   async create(dto: CreateProjectTaskDto, tokenCreatorId: string, tokenCompanyId: string) {
-    // Get companyId from team if token doesn't carry it
     const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
     if (!team) throw new NotFoundException('Team not found');
     const companyId = tokenCompanyId || team.companyId;
 
+    if (!companyId) {
+      throw new NotFoundException('Company ID not found for team. Please ensure the team is associated with a company.');
+    }
+
+    const teamName = dto.teamName ?? team.name ?? null;
     const resolvedCreatorId = dto.creatorId || tokenCreatorId;
 
-    // Auto-fetch creatorName from User/CompanyUser
+    // Auto-fetch creatorName
     let creatorName = dto.creatorName ?? null;
     if (!creatorName && resolvedCreatorId) {
       const cu = await this.prisma.companyUser.findUnique({
@@ -45,27 +49,47 @@ export class ProjectTasksService {
       }
     }
 
-    // Auto-fetch inchargeName from User/CompanyUser
-    let inchargeName = dto.inchargeName ?? null;
-    if (dto.inchargeId) {
-      if (!inchargeName) {
+    // Auto-fetch inChargeName
+    const resolvedInChargeId = dto.inChargeId || null;
+    let inChargeName: string | null = dto.inChargeName ?? null;
+    if (resolvedInChargeId) {
+      if (!inChargeName) {
         const cu = await this.prisma.companyUser.findUnique({
-          where: { id: dto.inchargeId },
+          where: { id: resolvedInChargeId },
           select: { firstName: true, lastName: true },
         });
         if (cu) {
-          inchargeName = `${cu.firstName} ${cu.lastName ?? ''}`.trim();
+          inChargeName = `${cu.firstName} ${cu.lastName ?? ''}`.trim();
         } else {
           const u = await this.prisma.user.findUnique({
-            where: { id: dto.inchargeId },
+            where: { id: resolvedInChargeId },
             select: { fullName: true, firstName: true },
           });
-          if (u) inchargeName = u.fullName || u.firstName || null;
+          if (u) inChargeName = u.fullName || u.firstName || null;
         }
       }
     } else {
-      dto.inchargeId = undefined;
-      inchargeName = 'Unassigned';
+      inChargeName = null;
+    }
+
+    // Auto-fetch statusName from Status collection
+    let statusName: string | null = dto.statusName ?? null;
+    if (dto.statusId && !statusName) {
+      const s = await this.prisma.status.findUnique({
+        where: { id: dto.statusId },
+        select: { label: true },
+      });
+      statusName = s?.label ?? null;
+    }
+
+    // Auto-fetch priorityName from Priority collection
+    let priorityName: string | null = dto.priorityName ?? null;
+    if (dto.priorityId && !priorityName) {
+      const p = await this.prisma.priority.findUnique({
+        where: { id: dto.priorityId },
+        select: { label: true },
+      });
+      priorityName = p?.label ?? null;
     }
 
     // Resolve columnName from columnId
@@ -78,9 +102,25 @@ export class ProjectTasksService {
       columnName = col?.label ?? null;
     }
 
-    // Process content into three formats
+    // Calculate position
+    let position = 1000;
+    const positionWhere: any = { companyId };
+    positionWhere.columnId = dto.columnId || null;
+
+    try {
+      const lastTask = await this.prisma.projectTask.findFirst({
+        where: positionWhere,
+        orderBy: { position: 'desc' },
+        select: { position: true },
+      });
+      if (lastTask?.position != null) position = lastTask.position + 1000;
+    } catch (error) {
+      console.warn('Error getting last task position:', error);
+    }
+
+    // Process content
     const taskContent = dto.taskContent ?? null;
-    const renderedHtml = taskContent ? renderHtml(taskContent) : null;
+    const renderedHtml = dto.renderedHtml ?? (taskContent ? renderHtml(taskContent) : null);
     const contentPreview = taskContent ? extractPreview(taskContent) : null;
 
     await this.prisma.projectTask.create({
@@ -89,24 +129,27 @@ export class ProjectTasksService {
         teamId: dto.teamId,
         companyId,
         creatorId: resolvedCreatorId,
-        creatorName,
+        creatorName: creatorName ?? null,
         columnId: dto.columnId ?? null,
         columnName,
         assignedUserId: dto.userId ?? null,
-        inchargeId: dto.inchargeId || null,
-        inchargeName,
-        priority: dto.priority ?? 'MEDIUM',
-        status: dto.status ?? 'TODO',
+        inChargeId: resolvedInChargeId,
+        inChargeName,
+        teamName,
+        priorityId: dto.priorityId ?? null,
+        priorityName,
+        statusId: dto.statusId ?? null,
+        statusName,
         logTime: dto.logTime ?? null,
         taskContent,
         renderedHtml,
         contentPreview,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         assignDate: dto.assignDate ? new Date(dto.assignDate) : null,
+        position,
       } as any,
     });
 
-    // Fire-and-forget: refresh snapshots for this team and affected user
     this.taskVisuals.refreshTeamSnapshots(dto.teamId).catch(() => null);
     this.analyticsSnapshot.refreshTeamSnapshot(dto.teamId).catch(() => null);
     if (resolvedCreatorId) {
@@ -125,7 +168,7 @@ export class ProjectTasksService {
     const where: any = {};
     if (companyId) where.companyId = companyId;
     if (dto.teamId) where.teamId = dto.teamId;
-    if (dto.status) where.status = dto.status;
+    if (dto.statusName) where.statusName = dto.statusName;
     if (dto.taskId) where.id = dto.taskId;
 
     for (const filter of dto.filters ?? []) {
@@ -144,7 +187,7 @@ export class ProjectTasksService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
         include: { _count: { select: { comments: true } } },
       }),
       this.prisma.projectTask.count({ where }),
@@ -198,25 +241,53 @@ export class ProjectTasksService {
       }
     }
 
-    // Auto-fetch inchargeName when inchargeId changes
-    let inchargeName: string | undefined;
-    if (dto.inchargeId !== undefined) {
-      if (!dto.inchargeId) {
-        inchargeName = 'Unassigned';
+    // Auto-fetch inChargeName when inChargeId changes
+    let inChargeName: string | null | undefined;
+    if (dto.inChargeId !== undefined) {
+      if (!dto.inChargeId) {
+        inChargeName = null;
       } else {
         const cu = await this.prisma.companyUser.findUnique({
-          where: { id: dto.inchargeId },
+          where: { id: dto.inChargeId },
           select: { firstName: true, lastName: true },
         });
         if (cu) {
-          inchargeName = `${cu.firstName} ${cu.lastName ?? ''}`.trim();
+          inChargeName = `${cu.firstName} ${cu.lastName ?? ''}`.trim();
         } else {
           const u = await this.prisma.user.findUnique({
-            where: { id: dto.inchargeId },
+            where: { id: dto.inChargeId },
             select: { fullName: true, firstName: true },
           });
-          if (u) inchargeName = u.fullName || u.firstName || undefined;
+          inChargeName = u ? (u.fullName || u.firstName || null) : null;
         }
+      }
+    }
+
+    // Auto-fetch statusName from Status collection when statusId changes
+    let statusName: string | null | undefined = dto.statusName;
+    if (dto.statusId !== undefined && dto.statusName === undefined) {
+      if (!dto.statusId) {
+        statusName = null;
+      } else {
+        const s = await this.prisma.status.findUnique({
+          where: { id: dto.statusId },
+          select: { label: true },
+        });
+        statusName = s?.label ?? null;
+      }
+    }
+
+    // Auto-fetch priorityName from Priority collection when priorityId changes
+    let priorityName: string | null | undefined = dto.priorityName;
+    if (dto.priorityId !== undefined && dto.priorityName === undefined) {
+      if (!dto.priorityId) {
+        priorityName = null;
+      } else {
+        const p = await this.prisma.priority.findUnique({
+          where: { id: dto.priorityId },
+          select: { label: true },
+        });
+        priorityName = p?.label ?? null;
       }
     }
 
@@ -228,21 +299,27 @@ export class ProjectTasksService {
           columnId: dto.columnId || null,
           columnName: columnName ?? null,
         }),
-        ...(dto.inchargeId !== undefined && {
-          inchargeId: dto.inchargeId || null,
-          inchargeName: inchargeName ?? null,
+        ...(dto.inChargeId !== undefined && {
+          inChargeId: dto.inChargeId || null,
+          inChargeName: inChargeName ?? null,
         }),
-        ...(dto.priority && { priority: dto.priority }),
-        ...(dto.status && { status: dto.status }),
+        ...(dto.priorityId !== undefined && { priorityId: dto.priorityId || null }),
+        ...(priorityName !== undefined && { priorityName: priorityName ?? null }),
+        ...(dto.statusId !== undefined && { statusId: dto.statusId || null }),
+        ...(statusName !== undefined && { statusName: statusName ?? null }),
         ...(dto.logTime !== undefined && { logTime: dto.logTime }),
-        ...(dto.taskContent !== undefined && { taskContent: dto.taskContent }),
+        ...(dto.taskContent !== undefined && {
+          taskContent: dto.taskContent,
+          renderedHtml: dto.renderedHtml ?? (dto.taskContent ? renderHtml(dto.taskContent) : null),
+          contentPreview: dto.taskContent ? extractPreview(dto.taskContent) : null,
+        }),
         ...(dto.dueDate !== undefined && {
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         }),
+        ...(dto.position !== undefined && { position: dto.position }),
       } as any,
     });
 
-    // Fire-and-forget: refresh snapshots for this task's team and the acting user
     this.taskVisuals.refreshTeamSnapshots(task.teamId).catch(() => null);
     this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
     this.analyticsSnapshot.refreshTeamSnapshot(task.teamId).catch(() => null);
@@ -275,7 +352,6 @@ export class ProjectTasksService {
     await this.prisma.comment.deleteMany({ where: { taskId: id } });
     await this.prisma.projectTask.delete({ where: { id } });
 
-    // Fire-and-forget: refresh snapshots after deletion
     this.taskVisuals.refreshTeamSnapshots(teamId).catch(() => null);
     this.taskVisuals.refreshIndividualSnapshots(creatorId).catch(() => null);
     this.analyticsSnapshot.refreshTeamSnapshot(teamId).catch(() => null);
