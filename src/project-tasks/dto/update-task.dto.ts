@@ -18,10 +18,6 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsString()
-  columnId?: string;
-
-  @IsOptional()
-  @IsString()
   inChargeId?: string;
 
   @IsOptional()

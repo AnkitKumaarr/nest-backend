@@ -8,4 +8,8 @@ export class AddReplyDto {
   @IsNotEmpty()
   @IsObject()
   reply: object; // ProseMirror/TipTap JSON doc
+
+  @IsNotEmpty()
+  @IsString()
+  renderedHtml: string; // HTML converted by frontend
 }

@@ -1,19 +1,10 @@
 // ── Global defaults (seeded once, no companyId) ───────────────────────────────
 
-export const DEFAULT_COLUMNS = [
-  { name: 'TODO',         label: 'TODO',         value: 'todo',         isDefault: true },
-  { name: 'INPROGRESS',   label: 'INPROGRESS',   value: 'inprogress',   isDefault: true },
-  { name: 'SELF TESTING', label: 'SELF TESTING', value: 'self testing', isDefault: true },
-  { name: 'BLOCKER',      label: 'BLOCKER',      value: 'blocker',      isDefault: true },
-  { name: 'QA READY',     label: 'QA READY',     value: 'qa ready',     isDefault: true },
-  { name: 'DONE',         label: 'DONE',         value: 'done',         isDefault: true },
-];
-
 export const DEFAULT_STATUSES = [
-  { name: 'Todo',        label: 'Todo',        value: 'todo',        isDefault: true },
-  { name: 'In Progress', label: 'In Progress', value: 'in progress', isDefault: true },
-  { name: 'Completed',   label: 'Completed',   value: 'completed',   isDefault: true },
-  { name: 'Unassigned',  label: 'Unassigned',  value: 'unassigned',  isDefault: true },
+  { name: 'Backlog',     label: 'Backlog',     value: 'backlog',     isDefault: true, order: 1 },
+  { name: 'Todo',        label: 'Todo',        value: 'todo',        isDefault: true, order: 2 },
+  { name: 'In Progress', label: 'In Progress', value: 'in progress', isDefault: true, order: 3 },
+  { name: 'Completed',   label: 'Completed',   value: 'completed',   isDefault: true, order: 4 },
 ];
 
 export const DEFAULT_PRIORITIES = [
@@ -39,7 +30,6 @@ export const DEFAULT_ROLES: { name: string; permissions: string[] }[] = [
       'project:create', 'project:edit', 'project:view',
       'user:view', 'user:create', 'user:edit',
       'role:view',
-      'column:create', 'column:delete',
     ],
   },
   {
@@ -49,7 +39,6 @@ export const DEFAULT_ROLES: { name: string; permissions: string[] }[] = [
       'team:manage-members', 'team:view',
       'project:view',
       'user:view',
-      'column:create', 'column:delete',
     ],
   },
   {

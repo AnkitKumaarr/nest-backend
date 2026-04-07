@@ -8,4 +8,8 @@ export class UpdateCommentDto {
   @IsNotEmpty()
   @IsObject()
   comment: object; // ProseMirror/TipTap JSON doc
+
+  @IsNotEmpty()
+  @IsString()
+  renderedHtml: string; // HTML converted by frontend
 }

@@ -17,10 +17,6 @@ export class CreateProjectTaskDto {
 
   @IsOptional()
   @IsString()
-  columnId?: string;
-
-  @IsOptional()
-  @IsString()
   creatorId?: string;
 
   @IsOptional()

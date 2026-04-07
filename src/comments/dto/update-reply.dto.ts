@@ -1,13 +1,17 @@
 import { IsNotEmpty, IsObject, IsString } from 'class-validator';
 
-export class AddCommentDto {
+export class UpdateReplyDto {
   @IsNotEmpty()
   @IsString()
-  taskId: string;
+  commentId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  replyId: string;
 
   @IsNotEmpty()
   @IsObject()
-  comment: object; // ProseMirror/TipTap JSON doc
+  reply: object; // ProseMirror/TipTap JSON doc
 
   @IsNotEmpty()
   @IsString()

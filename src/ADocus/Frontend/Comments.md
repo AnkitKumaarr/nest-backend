@@ -4,6 +4,43 @@
 **Auth header (all requests):** `Authorization: Bearer <access_token>`
 
 > `commentBy` and `replyBy` are **set automatically by the backend** from the logged-in user's token. Do not send them in any payload.
+> `renderedHtml` must be **converted by the frontend** and sent in every add/update payload — the backend does not convert it.
+
+---
+
+## How Replies Are Stored in the DB
+
+Replies are **embedded objects** inside the Comment document. There are no separate reply documents.
+
+**Comment document shape in MongoDB:**
+```json
+{
+  "_id": "68a1b2c3d4e5f6a7b8c9d0e1",
+  "taskId": "...",
+  "commentBy": { "userId": "...", "name": "Amit Shah" },
+  "comment": { "type": "doc", "content": [...] },
+  "renderedHtml": "<p>This looks good!</p>",
+  "contentPreview": "This looks good!",
+  "replies": [
+    {
+      "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+      "replyBy": { "userId": "...", "name": "Rahul Verma" },
+      "comment": { "type": "doc", "content": [...] },
+      "renderedHtml": "<p>Agreed!</p>",
+      "contentPreview": "Agreed!",
+      "createdAt": "2026-03-22T00:05:00.000Z",
+      "updatedAt": "2026-03-22T00:05:00.000Z"
+    }
+  ],
+  "createdAt": "2026-03-22T00:00:00.000Z",
+  "updatedAt": "2026-03-22T00:00:00.000Z"
+}
+```
+
+- Every new comment has `replies: []` by default.
+- `replyBy` exists only inside reply objects — never at comment root level.
+- Deleting a comment removes all its replies automatically (embedded).
+- Each reply has a UUID `id` (generated server-side).
 
 ---
 
@@ -20,19 +57,18 @@ POST /comments
   "comment": {
     "type": "doc",
     "content": [
-      {
-        "type": "paragraph",
-        "content": [{ "type": "text", "text": "This looks good!" }]
-      }
+      { "type": "paragraph", "content": [{ "type": "text", "text": "This looks good!" }] }
     ]
-  }
+  },
+  "renderedHtml": "<p>This looks good!</p>"
 }
 ```
 
-| Field     | Type   | Required | Description                  |
-|-----------|--------|----------|------------------------------|
-| `taskId`  | string | Yes      | ID of the task               |
-| `comment` | object | Yes      | ProseMirror/TipTap JSON doc  |
+| Field          | Type   | Required | Description                       |
+|----------------|--------|----------|-----------------------------------|
+| `taskId`       | string | Yes      | ID of the task                    |
+| `comment`      | object | Yes      | ProseMirror/TipTap JSON doc       |
+| `renderedHtml` | string | Yes      | HTML string converted by frontend |
 
 **Response:**
 ```json
@@ -72,31 +108,23 @@ POST /comments/list
       {
         "id": "68a1b2c3d4e5f6a7b8c9d0e1",
         "taskId": "68a1b2c3d4e5f6a7b8c9d0e1",
-        "commentBy": {
-          "userId": "68a1b2c3d4e5f6a7b8c9d0e1",
-          "name": "Amit Shah"
-        },
-        "comment": { "type": "doc", "content": [...] },
+        "commentBy": { "userId": "68a1b2c3d4e5f6a7b8c9d0e1", "name": "Amit Shah" },
+        "comment": { "type": "doc", "content": ["..."] },
         "renderedHtml": "<p>This looks good!</p>",
         "contentPreview": "This looks good!",
-        "parentId": null,
-        "createdAt": "2026-03-22T00:00:00.000Z",
-        "updatedAt": "2026-03-22T00:00:00.000Z",
         "replies": [
           {
-            "id": "68a1b2c3d4e5f6a7b8c9d0e2",
-            "commentBy": {
-              "userId": "68a1b2c3d4e5f6a7b8c9d0e2",
-              "name": "Rahul Verma"
-            },
-            "comment": { "type": "doc", "content": [...] },
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "replyBy": { "userId": "68a1b2c3d4e5f6a7b8c9d0e2", "name": "Rahul Verma" },
+            "comment": { "type": "doc", "content": ["..."] },
             "renderedHtml": "<p>Agreed!</p>",
             "contentPreview": "Agreed!",
-            "parentId": "68a1b2c3d4e5f6a7b8c9d0e1",
             "createdAt": "2026-03-22T00:05:00.000Z",
             "updatedAt": "2026-03-22T00:05:00.000Z"
           }
-        ]
+        ],
+        "createdAt": "2026-03-22T00:00:00.000Z",
+        "updatedAt": "2026-03-22T00:00:00.000Z"
       }
     ],
     "meta": { "page": 1, "limit": 20, "total": 5 }
@@ -119,19 +147,18 @@ PUT /comments
   "comment": {
     "type": "doc",
     "content": [
-      {
-        "type": "paragraph",
-        "content": [{ "type": "text", "text": "Updated comment text" }]
-      }
+      { "type": "paragraph", "content": [{ "type": "text", "text": "Updated comment text" }] }
     ]
-  }
+  },
+  "renderedHtml": "<p>Updated comment text</p>"
 }
 ```
 
-| Field       | Type   | Required | Description                     |
-|-------------|--------|----------|---------------------------------|
-| `commentId` | string | Yes      | ID of the comment to update     |
-| `comment`   | object | Yes      | Updated ProseMirror/TipTap JSON |
+| Field          | Type   | Required | Description                       |
+|----------------|--------|----------|-----------------------------------|
+| `commentId`    | string | Yes      | ID of the comment to update       |
+| `comment`      | object | Yes      | Updated ProseMirror/TipTap JSON   |
+| `renderedHtml` | string | Yes      | HTML string converted by frontend |
 
 > Returns `403 Forbidden` if the logged-in user is not the comment author.
 
@@ -144,7 +171,7 @@ PUT /comments
 
 ## 4. Delete Comment
 
-> Also deletes all replies under this comment.
+> Also removes all embedded replies.
 
 ```
 DELETE /comments/:id
@@ -174,19 +201,18 @@ POST /comments/reply
   "reply": {
     "type": "doc",
     "content": [
-      {
-        "type": "paragraph",
-        "content": [{ "type": "text", "text": "Agreed!" }]
-      }
+      { "type": "paragraph", "content": [{ "type": "text", "text": "Agreed!" }] }
     ]
-  }
+  },
+  "renderedHtml": "<p>Agreed!</p>"
 }
 ```
 
-| Field       | Type   | Required | Description                  |
-|-------------|--------|----------|------------------------------|
-| `commentId` | string | Yes      | ID of the parent comment     |
-| `reply`     | object | Yes      | ProseMirror/TipTap JSON doc  |
+| Field          | Type   | Required | Description                       |
+|----------------|--------|----------|-----------------------------------|
+| `commentId`    | string | Yes      | ID of the parent comment          |
+| `reply`        | object | Yes      | ProseMirror/TipTap JSON doc       |
+| `renderedHtml` | string | Yes      | HTML string converted by frontend |
 
 **Response:**
 ```json
@@ -195,13 +221,52 @@ POST /comments/reply
 
 ---
 
-## 6. Delete Reply
+## 6. Update Reply
 
 ```
-DELETE /comments/reply/:id
+PUT /comments/reply
 ```
 
-**URL param:** `:id` — reply ID
+**Body:**
+```json
+{
+  "commentId": "68a1b2c3d4e5f6a7b8c9d0e1",
+  "replyId": "550e8400-e29b-41d4-a716-446655440000",
+  "reply": {
+    "type": "doc",
+    "content": [
+      { "type": "paragraph", "content": [{ "type": "text", "text": "Updated reply text" }] }
+    ]
+  },
+  "renderedHtml": "<p>Updated reply text</p>"
+}
+```
+
+| Field          | Type   | Required | Description                       |
+|----------------|--------|----------|-----------------------------------|
+| `commentId`    | string | Yes      | ID of the parent comment          |
+| `replyId`      | string | Yes      | `_id` of the reply to update      |
+| `reply`        | object | Yes      | Updated ProseMirror/TipTap JSON   |
+| `renderedHtml` | string | Yes      | HTML string converted by frontend |
+
+> Returns `403 Forbidden` if the logged-in user is not the reply author.
+
+**Response:**
+```json
+{ "statusCode": 200, "success": true, "message": "Reply updated successfully" }
+```
+
+---
+
+## 7. Delete Reply
+
+```
+DELETE /comments/reply/:commentId/:replyId
+```
+
+**URL params:**
+- `:commentId` — ID of the parent comment
+- `:replyId` — UUID of the reply to delete
 
 > Returns `403 Forbidden` if the logged-in user is not the reply author.
 
@@ -212,27 +277,11 @@ DELETE /comments/reply/:id
 
 ---
 
-## Comment Content Format
-
-The `comment` / `reply` field uses the **ProseMirror/TipTap JSON doc** format. The backend stores content in three fields automatically:
-
-| Stored Field     | Description                                              |
-|------------------|----------------------------------------------------------|
-| `comment`        | Raw JSON doc — use this to re-hydrate the editor         |
-| `renderedHtml`   | HTML string — use this to display without an editor      |
-| `contentPreview` | Plain text, max 200 chars — use this for notifications   |
-
-**Supported inline marks:**
-`bold` · `italic` · `underline` · `strike` · `code` · `link`
-
-**Supported block nodes:**
-`paragraph` · `heading` · `bulletList` · `orderedList` · `listItem` · `blockquote` · `codeBlock` · `horizontalRule` · `hardBreak`
-
----
-
 ## Notes for Frontend
 
-- Top-level comments have `parentId: null`; replies have `parentId` set to the parent comment's `id`.
-- List returns top-level comments only, with `replies[]` nested inside each.
-- `commentBy.name` and `commentBy.userId` are auto-populated from the auth token — never send these from the frontend.
+- `replies: []` is always present on every comment (empty by default on new comments).
+- `commentBy` is on the comment root; `replyBy` is inside each reply object.
+- `renderedHtml` must be converted by the frontend before sending (do not rely on backend conversion).
+- `contentPreview` (plain text, max 200 chars) is still extracted server-side — do not send it.
 - Only the comment/reply author can edit or delete their own entry.
+- The reply `_id` is a MongoDB ObjectId hex string (24 chars), generated server-side.

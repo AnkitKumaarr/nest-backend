@@ -189,34 +189,31 @@ model Project {
 }
 
 model ProjectTask {
-  id          String               @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
-  creatorId   String               @db.ObjectId
-  creatorName String?
-  inChargeId   String?              @db.ObjectId @map("inchargeId")
-  inChargeName String?              @map("inchargeName")
-  teamId      String               @db.ObjectId
-  team        Team                 @relation(fields: [teamId], references: [id])
-  companyId   String               @db.ObjectId
-  company     Company              @relation(fields: [companyId], references: [id])
-  logTime     String?
-  columnId       String?              @db.ObjectId
-  columnName     String?
-  column         Column?              @relation(fields: [columnId], references: [id])
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  creatorId      String      @db.ObjectId
+  creatorName    String?
+  inChargeId     String?     @db.ObjectId @map("inchargeId")
+  inChargeName   String?     @map("inchargeName")
+  teamId         String      @db.ObjectId
+  team           Team        @relation(fields: [teamId], references: [id])
+  companyId      String      @db.ObjectId
+  company        Company     @relation(fields: [companyId], references: [id])
+  logTime        String?
   assignDate     DateTime?
-  assignedUserId String?              @db.ObjectId
+  assignedUserId String?     @db.ObjectId
   taskContent    Json?
   renderedHtml   String?
   contentPreview String?
-  statusId     String?
-  statusName   String?
-  priorityId   String?
-  priorityName String?
-  teamName     String?
-  dueDate      DateTime?
-  position     Float?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  statusId       String?
+  statusName     String?
+  priorityId     String?
+  priorityName   String?
+  teamName       String?
+  dueDate        DateTime?
+  position       Float?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   comments    Comment[]
 }
@@ -227,13 +224,22 @@ model Comment {
   task           ProjectTask @relation(fields: [taskId], references: [id])
   commentBy      CreatedBy?
   comment        Json?       // raw ProseMirror/TipTap JSON doc
-  renderedHtml   String?     // HTML rendered from comment JSON
-  contentPreview String?     // plain text preview
-  parentId       String?     @db.ObjectId
-  parent         Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies        Comment[]   @relation("CommentReplies")
+  renderedHtml   String?     // HTML string sent from frontend
+  contentPreview String?     // plain text preview (backend-extracted)
+  replies        Reply[]     // embedded reply objects
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+}
+
+type Reply {
+  id             String   @db.ObjectId
+  replyBy        CreatedBy
+  comment        Json
+  renderedHtml   String
+  parentId       String   @db.ObjectId
+  contentPreview String?
+  createdAt      DateTime
+  updatedAt      DateTime
 }
 
 type CreatedBy {
@@ -300,17 +306,6 @@ model WeekTask {
 }
 
 
-model Column {
-  id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  name         String        // immutable key — never updated after creation
-  label        String        // display name — modifiable
-  value        String        // lowercase of label — auto-derived
-  isDefault    Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  projectTasks ProjectTask[]
-}
 
 model Priority {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -328,6 +323,7 @@ model Status {
   label     String   // display name — modifiable
   value     String   // lowercase of label — auto-derived
   isDefault Boolean  @default(false)
+  order     Int      @default(9999) // lower = appears first; Backlog is always 1
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

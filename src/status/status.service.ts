@@ -9,14 +9,19 @@ export class StatusService {
   async create(dto: CreateStatusDto) {
     const label = dto.label;
     const value = label.toLowerCase();
+    const last = await this.prisma.status.findFirst({
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    const order = last ? last.order + 1 : 10;
     await this.prisma.status.create({
-      data: { name: label, label, value, isDefault: false },
+      data: { name: label, label, value, isDefault: false, order },
     });
     return { message: 'Status created successfully' };
   }
 
   async findAll() {
-    return this.prisma.status.findMany({ orderBy: { createdAt: 'asc' } });
+    return this.prisma.status.findMany({ orderBy: { order: 'asc' } });
   }
 
   async update(dto: UpdateStatusDto) {

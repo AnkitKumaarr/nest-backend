@@ -13,6 +13,7 @@ import { AddCommentDto } from './dto/add-comment.dto';
 import { ListCommentsDto } from './dto/list-comments.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { AddReplyDto } from './dto/add-reply.dto';
+import { UpdateReplyDto } from './dto/update-reply.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('comments')
@@ -28,8 +29,8 @@ export class CommentsController {
   }
 
   @Post()
-  addComment(@Body() dto: AddCommentDto, @Request() req) {
-    return this.service.addComment(dto.taskId, dto.comment, this.getAuthor(req));
+  addComment(@Body() dto: AddCommentDto, @Request() req: any) {
+    return this.service.addComment(dto.taskId, dto.comment, dto.renderedHtml, this.getAuthor(req));
   }
 
   @Post('list')
@@ -38,22 +39,31 @@ export class CommentsController {
   }
 
   @Put()
-  updateComment(@Body() dto: UpdateCommentDto, @Request() req) {
-    return this.service.updateComment(dto.commentId, dto.comment, req.user.sub);
+  updateComment(@Body() dto: UpdateCommentDto, @Request() req: any) {
+    return this.service.updateComment(dto.commentId, dto.comment, dto.renderedHtml, req.user.sub);
   }
 
   @Delete(':id')
-  deleteComment(@Param('id') id: string, @Request() req) {
+  deleteComment(@Param('id') id: string, @Request() req: any) {
     return this.service.deleteComment(id, req.user.sub);
   }
 
   @Post('reply')
-  addReply(@Body() dto: AddReplyDto, @Request() req) {
-    return this.service.addReply(dto.commentId, dto.reply, this.getAuthor(req));
+  addReply(@Body() dto: AddReplyDto, @Request() req: any) {
+    return this.service.addReply(dto.commentId, dto.reply, dto.renderedHtml, this.getAuthor(req));
   }
 
-  @Delete('reply/:id')
-  deleteReply(@Param('id') id: string, @Request() req) {
-    return this.service.deleteReply(id, req.user.sub);
+  @Put('reply')
+  updateReply(@Body() dto: UpdateReplyDto, @Request() req: any) {
+    return this.service.updateReply(dto.commentId, dto.replyId, dto.reply, dto.renderedHtml, req.user.sub);
+  }
+
+  @Delete('reply/:commentId/:replyId')
+  deleteReply(
+    @Param('commentId') commentId: string,
+    @Param('replyId') replyId: string,
+    @Request() req: any,
+  ) {
+    return this.service.deleteReply(commentId, replyId, req.user.sub);
   }
 }

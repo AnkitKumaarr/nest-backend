@@ -92,20 +92,10 @@ export class ProjectTasksService {
       priorityName = p?.label ?? null;
     }
 
-    // Resolve columnName from columnId
-    let columnName: string | null = null;
-    if (dto.columnId) {
-      const col = await this.prisma.column.findUnique({
-        where: { id: dto.columnId },
-        select: { label: true },
-      });
-      columnName = col?.label ?? null;
-    }
-
     // Calculate position
     let position = 1000;
     const positionWhere: any = { companyId };
-    positionWhere.columnId = dto.columnId || null;
+    positionWhere.statusId = dto.statusId || null;
 
     try {
       const lastTask = await this.prisma.projectTask.findFirst({
@@ -130,8 +120,6 @@ export class ProjectTasksService {
         companyId,
         creatorId: resolvedCreatorId,
         creatorName: creatorName ?? null,
-        columnId: dto.columnId ?? null,
-        columnName,
         assignedUserId: dto.userId ?? null,
         inChargeId: resolvedInChargeId,
         inChargeName,
@@ -201,7 +189,7 @@ export class ProjectTasksService {
     if (companyId) where.companyId = companyId;
     const task = await this.prisma.projectTask.findFirst({
       where,
-      include: { comments: { where: { parentId: null }, orderBy: { createdAt: 'asc' }, include: { replies: true } } },
+      include: { comments: { orderBy: { createdAt: 'asc' } } },
     });
     if (!task) throw new NotFoundException('Task not found');
     return task;
@@ -225,20 +213,6 @@ export class ProjectTasksService {
 
     if (!canEdit) {
       throw new ForbiddenException('You do not have permission to edit this task');
-    }
-
-    // Resolve columnName when columnId changes
-    let columnName: string | null | undefined;
-    if (dto.columnId !== undefined) {
-      if (!dto.columnId) {
-        columnName = null;
-      } else {
-        const col = await this.prisma.column.findUnique({
-          where: { id: dto.columnId },
-          select: { label: true },
-        });
-        columnName = col?.label ?? null;
-      }
     }
 
     // Auto-fetch inChargeName when inChargeId changes
@@ -295,10 +269,6 @@ export class ProjectTasksService {
       where: { id: dto.taskId },
       data: {
         ...(dto.title && { title: dto.title }),
-        ...(dto.columnId !== undefined && {
-          columnId: dto.columnId || null,
-          columnName: columnName ?? null,
-        }),
         ...(dto.inChargeId !== undefined && {
           inChargeId: dto.inChargeId || null,
           inChargeName: inChargeName ?? null,

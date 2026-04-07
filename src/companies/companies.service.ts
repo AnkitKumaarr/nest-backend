@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  DEFAULT_COLUMNS,
   DEFAULT_STATUSES,
   DEFAULT_PRIORITIES,
   DEFAULT_ROLES,
@@ -34,17 +33,24 @@ export class CompaniesService {
   }
 
   private async seedGlobals() {
-    const [colCount, statusCount, priorityCount] = await Promise.all([
-      this.prisma.column.count(),
+    const [statusCount, priorityCount] = await Promise.all([
       this.prisma.status.count(),
       this.prisma.priority.count(),
     ]);
 
     const tasks: Promise<any>[] = [];
-    if (colCount === 0) tasks.push(this.prisma.column.createMany({ data: DEFAULT_COLUMNS }));
-    if (statusCount === 0) tasks.push(this.prisma.status.createMany({ data: DEFAULT_STATUSES }));
+
+    if (statusCount === 0) {
+      tasks.push(this.prisma.status.createMany({ data: DEFAULT_STATUSES }));
+    } else {
+      // Fix order on existing default statuses in case they were created before order field existed
+      for (const s of DEFAULT_STATUSES) {
+        tasks.push(this.prisma.status.updateMany({ where: { name: s.name }, data: { order: s.order } }));
+      }
+    }
+
     if (priorityCount === 0) tasks.push(this.prisma.priority.createMany({ data: DEFAULT_PRIORITIES }));
-    if (tasks.length > 0) await Promise.all(tasks);
+    await Promise.all(tasks);
   }
 
   private async seedRoles(companyId: string) {

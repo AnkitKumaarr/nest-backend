@@ -19,7 +19,6 @@ import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { WeeksModule } from './weeks/weeks.module';
 import { WeeklyTasksModule } from './weekly-tasks/weekly-tasks.module';
 import { LeaderModule } from './leader/leader.module';
-import { ColumnsModule } from './columns/columns.module';
 import { PriorityModule } from './priority/priority.module';
 import { StatusModule } from './status/status.module';
 import { TaskVisualsModule } from './task-visuals/task-visuals.module';
@@ -52,7 +51,6 @@ import { FileManagerModule } from './file-manager/file-manager.module';
     WeeksModule,
     WeeklyTasksModule,
     LeaderModule,
-    ColumnsModule,
     PriorityModule,
     StatusModule,
     TaskVisualsModule,
