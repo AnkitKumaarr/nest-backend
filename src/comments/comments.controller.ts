@@ -22,9 +22,11 @@ export class CommentsController {
   constructor(private readonly service: CommentsService) {}
 
   private getAuthor(req: any): { userId: string; name: string } {
-    const name = req.user.firstName
-      ? `${req.user.firstName} ${req.user.lastName ?? ''}`.trim()
-      : req.user.email;
+    const name = req.user.fullName
+      ? req.user.fullName
+      : req.user.firstName
+        ? `${req.user.firstName} ${req.user.lastName ?? ''}`.trim()
+        : req.user.email;
     return { userId: req.user.sub, name };
   }
 
