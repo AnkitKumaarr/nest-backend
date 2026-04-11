@@ -62,7 +62,7 @@ export class CreateProjectTaskDto {
 
   @IsOptional()
   @IsObject()
-  taskContent?: object;
+  taskContentJson?: object;
 
   @IsOptional()
   @IsString()

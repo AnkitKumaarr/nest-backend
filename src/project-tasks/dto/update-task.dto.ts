@@ -43,7 +43,7 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsObject()
-  taskContent?: object;
+  taskContentJson?: object;
 
   @IsOptional()
   @IsString()

@@ -109,9 +109,9 @@ export class ProjectTasksService {
     }
 
     // Process content
-    const taskContent = dto.taskContent ?? null;
-    const renderedHtml = dto.renderedHtml ?? (taskContent ? renderHtml(taskContent) : null);
-    const contentPreview = taskContent ? extractPreview(taskContent) : null;
+    const taskContentJson = dto.taskContentJson ?? null;
+    const renderedHtml = dto.renderedHtml ?? (taskContentJson ? renderHtml(taskContentJson) : null);
+    const contentPreview = taskContentJson ? extractPreview(taskContentJson) : null;
 
     await this.prisma.projectTask.create({
       data: {
@@ -129,7 +129,7 @@ export class ProjectTasksService {
         statusId: dto.statusId ?? null,
         statusName,
         logTime: dto.logTime ?? null,
-        taskContent,
+        taskContentJson,
         renderedHtml,
         contentPreview,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
@@ -278,10 +278,10 @@ export class ProjectTasksService {
         ...(dto.statusId !== undefined && { statusId: dto.statusId || null }),
         ...(statusName !== undefined && { statusName: statusName ?? null }),
         ...(dto.logTime !== undefined && { logTime: dto.logTime }),
-        ...(dto.taskContent !== undefined && {
-          taskContent: dto.taskContent,
-          renderedHtml: dto.renderedHtml ?? (dto.taskContent ? renderHtml(dto.taskContent) : null),
-          contentPreview: dto.taskContent ? extractPreview(dto.taskContent) : null,
+        ...(dto.taskContentJson !== undefined && {
+          taskContentJson: dto.taskContentJson,
+          renderedHtml: dto.renderedHtml ?? (dto.taskContentJson ? renderHtml(dto.taskContentJson) : null),
+          contentPreview: dto.taskContentJson ? extractPreview(dto.taskContentJson) : null,
         }),
         ...(dto.dueDate !== undefined && {
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,

@@ -202,7 +202,7 @@ model ProjectTask {
   logTime        String?
   assignDate     DateTime?
   assignedUserId String?     @db.ObjectId
-  taskContent    Json?
+  taskContentJson Json?
   renderedHtml   String?
   contentPreview String?
   statusId       String?
@@ -215,7 +215,7 @@ model ProjectTask {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  comments    Comment[]
+  comments       Comment[]
 }
 
 model Comment {
