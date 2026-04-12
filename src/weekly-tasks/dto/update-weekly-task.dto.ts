@@ -15,7 +15,11 @@ export class UpdateWeeklyTaskDto {
 
   @IsOptional()
   @IsString()
-  content?: string;
+  descriptionHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  descPreview?: string;
 
   @IsOptional()
   @IsString()
@@ -35,7 +39,11 @@ export class UpdateWeeklyTaskDto {
 
   @IsOptional()
   @IsString()
-  blocker?: string;
+  blockerHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  blockerPreview?: string;
 
   @IsOptional()
   @IsString()

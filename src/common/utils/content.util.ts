@@ -53,6 +53,22 @@ function extractText(node: any): string {
   return (node.content ?? []).map(extractText).join(' ');
 }
 
+/**
+ * Extracts plain text preview from HTML string.
+ */
+export function extractTextFromHtml(html: string, max = 200): string {
+  if (!html) return '';
+  
+  // Remove HTML tags and get plain text
+  const text = html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+  
+  return text.length > max ? text.slice(0, max) + '...' : text;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')

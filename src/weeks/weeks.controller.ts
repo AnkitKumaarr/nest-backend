@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { WeeksService } from './weeks.service';
 import { CreateWeekDto } from './dto/create-week.dto';
+import { UpdateWeekDto } from './dto/update-week.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('weeks')
@@ -17,11 +18,12 @@ export class WeeksController {
   @Get()
   findAll(@Request() req) {
     const companyId = req.user.companyId ?? null;
-    return this.service.findAll(req.user.sub, companyId);
+    const currentYear = new Date().getFullYear();
+    return this.service.findAll(req.user.sub, companyId, currentYear);
   }
 
-  @Delete(':weekId')
-  remove(@Param('weekId') weekId: string, @Request() req) {
-    return this.service.remove(weekId, req.user.sub);
+  @Put()
+  update(@Body() dto: UpdateWeekDto, @Request() req) {
+    return this.service.update(dto, req.user.sub);
   }
 }

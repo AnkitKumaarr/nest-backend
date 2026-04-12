@@ -247,33 +247,46 @@ type CreatedBy {
   name   String
 }
 
+// ─── Calendar System - Simple Single Collection Design ────────────────────
+
 type WeekDay {
-  dayId String   @db.ObjectId
-  name  String
-  date  DateTime?
+  dayId     String   @db.ObjectId
+  name      String
+  date      DateTime
+  taskCount Int?
 }
 
-type WeekMonth {
-  monthId String @db.ObjectId
-  name    String
-  number  Int
-}
-
-model Week {
-  id         String     @id @default(auto()) @map("_id") @db.ObjectId
-  label      String     // "Week 1", "Week 2", etc.
+type WeekSlot {
   weekNumber Int
-  month      WeekMonth
-  year       Int
+  label      String
   startDate  DateTime
   endDate    DateTime
   days       WeekDay[]
-  userId     String     @db.ObjectId
-  companyId  String?    @db.ObjectId
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  weekId     String?  @db.ObjectId
+  taskCount  Int?
+}
 
-  weekTasks  WeekTask[]
+type WeekMonth {
+  monthId   String @db.ObjectId
+  name      String
+  number    Int
+  startDate DateTime
+  endDate   DateTime
+  startDay  String
+  endDay    String
+}
+
+model Week {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @db.ObjectId
+  companyId String?    @db.ObjectId
+  year      Int
+  month     WeekMonth
+  weeks     WeekSlot[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  weekTasks WeekTask[]
 }
 
 type DayDetails {
@@ -285,24 +298,27 @@ type DayDetails {
 }
 
 model WeekTask {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  weekId     String      @db.ObjectId
-  week       Week        @relation(fields: [weekId], references: [id])
-  title      String?
-  content    String?
-  startDate  String?
-  dayId      String?     @db.ObjectId
-  dayDetails DayDetails?
-  dueDate    String?
-  priority   String   @default("medium")
-  status     String   @default("todo")
-  blocker    String?
-  assignedTo String?
-  userId     String   @db.ObjectId
-  companyId  String?  @db.ObjectId
-  company    Company? @relation(fields: [companyId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  weekId           String?     @db.ObjectId
+  week             Week?       @relation(fields: [weekId], references: [id])
+  parentId         String?     @db.ObjectId
+  title            String?
+  descriptionHtml  String?
+  descPreview      String?
+  startDate        String?
+  dayId            String?     @db.ObjectId
+  dayDetails       DayDetails?
+  dueDate          String?
+  priority         String   @default("medium")
+  status           String   @default("todo")
+  blockerHtml      String?
+  blockerPreview   String?
+  assignedTo       String?
+  userId           String   @db.ObjectId
+  companyId        String?  @db.ObjectId
+  company          Company? @relation(fields: [companyId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 

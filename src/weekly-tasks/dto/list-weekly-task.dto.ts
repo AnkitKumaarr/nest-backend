@@ -4,7 +4,19 @@ import { Type } from 'class-transformer';
 export class ListWeeklyTaskDto {
   @IsOptional()
   @IsString()
+  weekId?: string;
+
+  @IsOptional()
+  @IsString()
   dayId?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  priority?: string;
 
   @IsOptional()
   @IsString()

@@ -7,11 +7,19 @@ export class CreateWeeklyTaskDto {
 
   @IsOptional()
   @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @IsString()
   title?: string;
 
   @IsOptional()
   @IsString()
-  content?: string;
+  descriptionHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  descPreview?: string;
 
   @IsOptional()
   @IsString()
@@ -35,7 +43,11 @@ export class CreateWeeklyTaskDto {
 
   @IsOptional()
   @IsString()
-  blocker?: string;
+  blockerHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  blockerPreview?: string;
 
   @IsOptional()
   @IsString()
