@@ -58,86 +58,126 @@ export interface WeekSlot {
   weekId?: string;
 }
 
-/**
- * Returns midnight IST (UTC+5:30) for day `day` of month `month` in year `year`.
- * Uses dayjs for timezone conversion.
- *
- *   startDate for day d  →  toISTMidnight(y, m, d)     →  IST midnight of day d
- *   endDate   for day d  →  toISTMidnight(y, m, d+1)   →  IST midnight of day d+1
- */
-export function toISTMidnight(year: number, month: number, day: number): Date {
-  return dayjs.tz(`${year}-${month}-${day}`, 'Asia/Kolkata').startOf('day').toDate();
+export function getMonthBoundaries(month: number, year: number) {
+  return {
+    startDate: new Date(Date.UTC(year, month - 1, 1)),
+    endDate: new Date(Date.UTC(year, month, 1)),
+  };
 }
 
-/**
- * Builds week slots for a given month and year.
- *
- * Week logic:
- * - Week 1: starts from 1st (any weekday) → nearest Sunday or month-end.
- * - All subsequent weeks: Monday → Sunday or month-end.
- *
- * @param month - Month number (1-12)
- * @param year - Year
- * @returns Array of WeekSlot objects
- */
+export function getDaysInMonth(month: number, year: number): number {
+  return dayjs.utc(`${year}-${month}-01`).daysInMonth();
+}
+
+export function getDayName(year: number, month: number, day: number): string {
+  const dow = dayjs.utc(`${year}-${month}-${day}`).day();
+  return DAY_NAMES[(dow + 6) % 7];
+}
+
+export function getMonthMeta(month: number, year: number) {
+  const daysInMonth = getDaysInMonth(month, year);
+  const { startDate, endDate } = getMonthBoundaries(month, year);
+  const startDay = getDayName(year, month, 1);
+  const endDay = getDayName(year, month, daysInMonth);
+  return { daysInMonth, startDate, endDate, startDay, endDay };
+}
+
+export function normalizeWeekSlots(slots: WeekSlot[]) {
+  return slots.map((slot) => ({
+    ...slot,
+    weekId: slot.weekId ?? null,
+    taskCount: null,
+    days: slot.days.map((day) => ({ ...day, taskCount: null })),
+  }));
+}
+
+export function getMissingWeeks(existingWeeks: any[], generatedSlots: WeekSlot[]) {
+  const existingNumbers = new Set(existingWeeks.map((w) => w.weekNumber));
+  return generatedSlots.filter((slot) => !existingNumbers.has(slot.weekNumber));
+}
+
+export function mergeWeeksInOrder(existingWeeks: any[], newWeeks: any[]) {
+  const merged = [...existingWeeks];
+  newWeeks.forEach((week) => {
+    const insertAt = merged.findIndex((w) => w.weekNumber > week.weekNumber);
+    insertAt === -1 ? merged.push(week) : merged.splice(insertAt, 0, week);
+  });
+  return merged;
+}
+
+function toStartDate(year: number, month: number, day: number): Date {
+  return dayjs.utc(`${year}-${month}-${day}`).startOf('day').toDate();
+}
+
+function toEndDate(year: number, month: number, day: number): Date {
+  return dayjs.utc(`${year}-${month}-${day}`).endOf('day').toDate();
+}
+
+function buildWeekDay(year: number, month: number, day: number): WeekDay {
+  const dow = dayjs.utc(`${year}-${month}-${day}`).day();
+  return {
+    dayId: newObjectId(),
+    name: DAY_NAMES[(dow + 6) % 7],
+    date: toStartDate(year, month, day),
+  };
+}
+
+function buildDaysRange(
+  year: number,
+  month: number,
+  startDay: number,
+  endDay: number,
+): WeekDay[] {
+  return Array.from({ length: endDay - startDay + 1 }, (_, i) =>
+    buildWeekDay(year, month, startDay + i),
+  );
+}
+
 export function buildWeekSlots(month: number, year: number): WeekSlot[] {
-  const daysInMonth = dayjs(`${year}-${month}`).daysInMonth();
+  const totalDays = getDaysInMonth(month, year);
+  const firstDayOfMonth = dayjs.utc(`${year}-${month}-01`);
+  const firstDow = firstDayOfMonth.day();
   const slots: WeekSlot[] = [];
   let weekNumber = 1;
-  let cursor = 1;
+  let startDay = 1;
 
-  while (cursor <= daysInMonth) {
-    const firstDay = cursor;
-    const startDow = dayjs(`${year}-${month}-${firstDay}`).day(); // 0=Sun, 1=Mon
-
-    // Week 1: starts from 1st (any weekday) → nearest Sunday or month-end.
-    // All subsequent weeks: Monday → Sunday or month-end.
-    let lastDay: number;
-    if (weekNumber === 1) {
-      // First week: go to Sunday or month-end
-      const daysUntilSun = (0 - startDow + 7) % 7;
-      lastDay = Math.min(firstDay + daysUntilSun, daysInMonth);
-    } else {
-      // Subsequent weeks: Monday to Sunday
-      // If cursor is not Monday, find the next Monday
-      const currentDow = dayjs(`${year}-${month}-${cursor}`).day();
-      const daysUntilMon = (1 - currentDow + 7) % 7;
-      const weekStartDay = cursor + daysUntilMon;
-
-      if (weekStartDay > daysInMonth) break;
-
-      // Go to Sunday or month-end
-      const daysUntilSun = (0 - 1 + 7) % 7; // From Monday to Sunday = 6 days
-      lastDay = Math.min(weekStartDay + daysUntilSun, daysInMonth);
-
-      // Adjust cursor to the actual week start day
-      cursor = weekStartDay;
-    }
-
-    const days: WeekDay[] = [];
-    for (let d = cursor; d <= lastDay; d++) {
-      const dow = dayjs(`${year}-${month}-${d}`).day(); // 0=Sun, 1=Mon, 2=Tue, etc.
-      // Adjust index for Monday-first array: dow=0(Sun)->6, dow=1(Mon)->0, dow=2(Tue)->1, etc.
-      const dayIndex = (dow + 6) % 7;
-      days.push({
-        dayId: newObjectId(),
-        name: DAY_NAMES[dayIndex],
-        date: toISTMidnight(year, month, d),
-      });
-    }
+  while (startDay <= totalDays) {
+    const endDay =
+      weekNumber === 1
+        ? Math.min(1 + ((7 - firstDow) % 7), totalDays)
+        : Math.min(startDay + 6, totalDays);
 
     slots.push({
       weekNumber,
-      label: `Week ${weekNumber}`,
-      startDate: toISTMidnight(year, month, cursor),
-      endDate: toISTMidnight(year, month, lastDay + 1),
-      days,
+      label:
+        weekNumber === 1 && firstDow !== 1
+          ? 'Week 1(Partial)'
+          : endDay === totalDays && endDay - startDay + 1 < 7
+            ? `Week ${weekNumber}(Partial)`
+            : `Week ${weekNumber}`,
+      startDate: toStartDate(year, month, startDay),
+      endDate: toEndDate(year, month, endDay),
+      days: buildDaysRange(year, month, startDay, endDay),
       weekId: newObjectId(),
     });
 
     weekNumber++;
-    cursor = lastDay + 1;
+    startDay = endDay + 1;
   }
 
   return slots;
 }
+
+export const getCurrentWeek = (
+  weeks: Array<{ startDate: Date | string; endDate: Date | string }>,
+) => {
+  const now = Date.now();
+
+  return (
+    weeks.find((week) => {
+      const start = new Date(week.startDate).getTime();
+      const end = new Date(week.endDate).getTime();
+      return now >= start && now <= end;
+    }) ?? null
+  );
+};

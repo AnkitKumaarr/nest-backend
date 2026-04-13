@@ -277,16 +277,19 @@ type WeekMonth {
 }
 
 model Week {
-  id        String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String     @db.ObjectId
-  companyId String?    @db.ObjectId
-  year      Int
-  month     WeekMonth
-  weeks     WeekSlot[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String     @db.ObjectId
+  companyId   String?    @db.ObjectId
+  year        Int
+  monthNumber Int
+  month       WeekMonth
+  weeks       WeekSlot[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   weekTasks WeekTask[]
+
+  @@unique([userId, year, monthNumber])
 }
 
 type DayDetails {

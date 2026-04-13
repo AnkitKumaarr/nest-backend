@@ -1,14 +1,20 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWeekDto } from './dto/create-week.dto';
 import { UpdateWeekDto } from './dto/update-week.dto';
-import dayjs from '../utils/dayjs';
 import {
   newObjectId,
-  DAY_NAMES,
   MONTH_NAMES,
-  toISTMidnight,
   buildWeekSlots,
+  getMonthMeta,
+  getCurrentWeek,
+  normalizeWeekSlots,
+  getMissingWeeks,
+  mergeWeeksInOrder,
 } from './weekUtils';
 
 @Injectable()
@@ -17,99 +23,57 @@ export class WeeksService {
 
   async create(dto: CreateWeekDto, userId: string, companyId?: string | null) {
     const { month, year } = dto;
+
+    if (month < 1 || month > 12) {
+      throw new Error('Month must be between 1 and 12');
+    }
+
     const monthName = MONTH_NAMES[month - 1];
+    const generatedSlots = buildWeekSlots(month, year);
+    const { startDate, endDate, startDay, endDay } = getMonthMeta(month, year);
 
-    const slots = buildWeekSlots(month, year);
-
-    const startDate = toISTMidnight(year, month, 1);
-    const daysInMonth = dayjs(`${year}-${month}`).daysInMonth();
-    const endDate = toISTMidnight(year, month, daysInMonth + 1);
-
-    const startDow = dayjs(`${year}-${month}-1`).day();
-    const endDow = dayjs(`${year}-${month}-${daysInMonth}`).day();
-
-    const startDayIndex = (startDow + 6) % 7;
-    const endDayIndex = (endDow + 6) % 7;
-
-    const startDay = DAY_NAMES[startDayIndex];
-    const endDay = DAY_NAMES[endDayIndex];
-
-    const allYearWeeks = await this.prisma.week.findMany({
-      where: {
-        year,
-        userId,
-      },
+    const existing = await this.prisma.week.findUnique({
+      where: { userId_year_monthNumber: { userId, year, monthNumber: month } },
     });
 
-    const existing = allYearWeeks.find(week => week.month?.number === month) || null;
-
     if (existing) {
-      const existingWeekNumbers = existing.weeks.map((w: any) => w.weekNumber);
+      const missing = getMissingWeeks(existing.weeks, generatedSlots);
 
-      const missingWeeks = slots.filter(
-        (slot) => !existingWeekNumbers.includes(slot.weekNumber),
-      );
-
-      if (missingWeeks.length === 0) {
+      if (missing.length === 0) {
         throw new ForbiddenException(
-          `Weeks already exist for ${monthName} ${year} for this user`,
+          `Weeks already exist for ${monthName} ${year}`,
         );
       }
 
-      const updatedWeeks = [...existing.weeks];
-      missingWeeks.forEach(missingWeek => {
-        const weekWithTaskCount = {
-          ...missingWeek,
-          weekId: missingWeek.weekId || null,
-          taskCount: null,
-          days: missingWeek.days.map(day => ({
-            ...day,
-            taskCount: null
-          }))
-        };
-        
-        const insertIndex = updatedWeeks.findIndex(
-          existingWeek => existingWeek.weekNumber > weekWithTaskCount.weekNumber
-        );
-        
-        if (insertIndex === -1) {
-          updatedWeeks.push(weekWithTaskCount);
-        } else {
-          updatedWeeks.splice(insertIndex, 0, weekWithTaskCount);
-        }
-      });
+      const merged = mergeWeeksInOrder(
+        existing.weeks,
+        normalizeWeekSlots(missing),
+      );
 
       await this.prisma.week.update({
         where: { id: existing.id },
-        data: { weeks: updatedWeeks },
+        data: { weeks: merged },
       });
 
       return {
         success: true,
-        message: `${missingWeeks.length} missing weeks added for ${monthName} ${year}`,
-        weeksAdded: missingWeeks.length,
-        totalWeeks: updatedWeeks.length,
+        message: `${missing.length} missing weeks added`,
+        weeksAdded: missing.length,
+        totalWeeks: merged.length,
         month,
         monthName,
         year,
       };
     }
 
-    const slotsWithTaskCount = slots.map(slot => ({
-      ...slot,
-      weekId: slot.weekId || null,
-      taskCount: null,
-      days: slot.days.map(day => ({
-        ...day,
-        taskCount: null
-      }))
-    }));
+    const normalizedSlots = normalizeWeekSlots(generatedSlots);
 
     await this.prisma.week.create({
       data: {
         userId,
         companyId: companyId ?? null,
         year,
+        monthNumber: month,
         month: {
           monthId: newObjectId(),
           name: monthName,
@@ -119,52 +83,110 @@ export class WeeksService {
           startDay,
           endDay,
         },
-        weeks: slotsWithTaskCount,
+        weeks: normalizedSlots,
       },
     });
 
     return {
       success: true,
-      message: `${slots.length} weeks created for ${monthName} ${year}`,
-      weeksCreated: slots.length,
+      message: `${normalizedSlots.length} weeks created successfully`,
+      weeksCreated: normalizedSlots.length,
       month,
       monthName,
       year,
     };
   }
 
-  async findAll(userId: string, companyId?: string | null, year?: number) {
-    const where: any = companyId ? { companyId } : { userId };
+  private async ensureMonthWeeksExist(
+    month: number,
+    year: number,
+    userId: string,
+    companyId?: string | null,
+  ) {
+    const generatedSlots = buildWeekSlots(month, year);
+    const { startDate, endDate, startDay, endDay } = getMonthMeta(month, year);
+    const monthName = MONTH_NAMES[month - 1];
 
-    if (year) {
-      where.year = year;
+    const existing = await this.prisma.week.findUnique({
+      where: { userId_year_monthNumber: { userId, year, monthNumber: month } },
+    });
+
+    if (!existing) {
+      await this.prisma.week.create({
+        data: {
+          userId,
+          companyId: companyId ?? null,
+          year,
+          monthNumber: month,
+          month: {
+            monthId: newObjectId(),
+            name: monthName,
+            number: month,
+            startDate,
+            endDate,
+            startDay,
+            endDay,
+          },
+          weeks: normalizeWeekSlots(generatedSlots),
+        },
+      });
+      return;
     }
+
+    const missing = getMissingWeeks(existing.weeks, generatedSlots);
+    if (missing.length === 0) return;
+
+    const merged = mergeWeeksInOrder(
+      existing.weeks,
+      normalizeWeekSlots(missing),
+    );
+
+    await this.prisma.week.update({
+      where: { id: existing.id },
+      data: { weeks: merged },
+    });
+  }
+
+  async findAll(userId: string, companyId?: string | null, year?: number) {
+    const now = new Date();
+    await this.ensureMonthWeeksExist(
+      now.getMonth() + 1,
+      now.getFullYear(),
+      userId,
+      companyId,
+    );
+
+    const where: any = companyId ? { companyId } : { userId };
+    if (year) where.year = year;
 
     const weeks = await this.prisma.week.findMany({
       where,
-      orderBy: [{ year: 'asc' }, { month: { number: 'asc' } }],
+      orderBy: [{ year: 'asc' }, { monthNumber: 'asc' }],
     });
 
-    const flattenedWeeks = weeks.flatMap((week: any) =>
-      week.weeks.map((weekSlot: any) => ({
-        id: week.id,
+    const flattenedWeeks = weeks.flatMap((item: any) =>
+      item.weeks.map((weekSlot: any) => ({
+        id: item.id,
         weekId: weekSlot.weekId,
         label: weekSlot.label,
         weekNumber: weekSlot.weekNumber,
-        month: week.month.name,
-        year: week.year,
+        monthName: item.month.name,
+        monthNumber: item.monthNumber,
+        year: item.year,
         startDate: weekSlot.startDate,
         endDate: weekSlot.endDate,
         days: weekSlot.days,
-        weekTasks: weekSlot.taskCount ?? 0,
-        userId: week.userId,
-        companyId: week.companyId,
-        createdAt: week.createdAt,
-        updatedAt: week.updatedAt,
+        weekTaskCount: weekSlot.taskCount ?? 0,
+        userId: item.userId,
+        companyId: item.companyId,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
       })),
     );
 
-    return flattenedWeeks;
+    const currentWeek = getCurrentWeek(flattenedWeeks);
+
+    return { weeks: flattenedWeeks, currentWeek };
   }
 
   async update(dto: UpdateWeekDto, userId: string) {
@@ -181,9 +203,7 @@ export class WeeksService {
       throw new ForbiddenException('Not authorized to modify this calendar');
     }
 
-    const weekExists = document.weeks.some(
-      (w: any) => w.weekId === dto.weekId,
-    );
+    const weekExists = document.weeks.some((w: any) => w.weekId === dto.weekId);
 
     if (!weekExists) {
       throw new NotFoundException('Week not found in the calendar document');
