@@ -155,8 +155,8 @@ model Role {
 model Team {
   id           String       @id @default(auto()) @map("_id") @db.ObjectId
   name         String
-  companyId    String?      @db.ObjectId
-  company      Company?     @relation(fields: [companyId], references: [id])
+  companyId    String      @db.ObjectId
+  company      Company     @relation(fields: [companyId], references: [id])
   createdBy    CreatedBy?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -182,7 +182,7 @@ model Project {
   name        String
   description String?
   companyId   String     @db.ObjectId
-  teamId      String?    @db.ObjectId
+  teamId      String     @db.ObjectId
   createdBy   CreatedBy?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
