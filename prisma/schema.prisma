@@ -74,7 +74,7 @@ model MeetingParticipant {
   status    String @default("pending")
 
   meeting Meeting @relation(fields: [meetingId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 }

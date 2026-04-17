@@ -11,6 +11,7 @@ export class ProjectsService {
       data: {
         name: dto.name,
         description: dto.description ?? null,
+        teamId: dto.teamId,
         companyId,
         createdBy: { userId, name: userName },
       },

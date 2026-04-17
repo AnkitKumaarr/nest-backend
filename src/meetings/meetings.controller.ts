@@ -69,6 +69,12 @@ export class MeetingsController {
     return this.meetingsService.getBadges(req.user.sub);
   }
 
+  /** GET /api/meetings/dashboard — aggregated data for Desk component */
+  @Get('dashboard')
+  getDashboard(@Request() req) {
+    return this.meetingsService.getDashboard(req.user.sub, req.user.companyId);
+  }
+
   // ── List Tab ─────────────────────────────────────────────────────────────────
 
   /** GET /api/meetings — paginated meetings table with filters */

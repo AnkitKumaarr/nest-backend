@@ -14,6 +14,15 @@ import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { ListMeetingsDto } from './dto/list-meetings.dto';
 import { CancelMeetingDto } from './dto/cancel-meeting.dto';
 import { DateRangeDto, ParticipationTrendDto } from './dto/date-range.dto';
+import {
+  MeetingOverviewResponse,
+  Meeting,
+  Participant,
+  TodaySummary,
+  PendingActions,
+  MeetingStreak,
+  MeetingBadge,
+} from './dto/meeting-overview.dto';
 
 // ─── Badge definitions ───────────────────────────────────────────────────────
 // Badges are computed dynamically from meeting stats — no separate DB table needed.
@@ -93,8 +102,17 @@ function formatParticipant(p: {
   id: string;
   userId: string;
   status: string;
-  user: { id: string; fullName: string | null; firstName: string | null; lastName: string | null; email: string; avatarUrl: string | null };
+  user: { id: string; fullName: string | null; firstName: string | null; lastName: string | null; email: string; avatarUrl: string | null } | null;
 }) {
+  if (!p.user) {
+    return {
+      id: p.userId,
+      name: 'Unknown',
+      email: '',
+      avatar: null,
+      status: capitalizeFirst(p.status),
+    };
+  }
   return {
     id: p.userId,
     name: p.user.fullName ?? `${p.user.firstName ?? ''} ${p.user.lastName ?? ''}`.trim(),
@@ -246,7 +264,156 @@ export class MeetingsService {
     });
   }
 
-  // ── 5. List meetings (paginated, filterable) ─────────────────────────────────
+  // ── 5. Dashboard (aggregated data for Desk component) ──────────────────────────
+
+  async getDashboard(userId: string, companyId: string): Promise<MeetingOverviewResponse> {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    // Fetch all data in parallel where possible
+    const [
+      nextMeetingRaw,
+      streakData,
+      badgesData,
+      analyticsData,
+      allMeetings,
+    ] = await Promise.all([
+      this.getNextMeeting(userId),
+      this.getStreak(userId),
+      this.getBadges(userId),
+      this.getAnalytics(userId),
+      this.prisma.meeting.findMany({
+        where: userMeetingFilter(userId),
+        include: { participants: { include: { user: { select: { id: true, fullName: true, firstName: true, lastName: true, email: true, avatarUrl: true } } } } },
+        orderBy: { startTime: 'asc' },
+      }),
+    ]);
+
+    // Convert next meeting to Meeting type
+    const nextMeeting: Meeting | null = nextMeetingRaw ? {
+      id: nextMeetingRaw.id,
+      title: nextMeetingRaw.title,
+      description: nextMeetingRaw.description ?? '',
+      startTime: nextMeetingRaw.startTime,
+      endTime: nextMeetingRaw.endTime,
+      status: nextMeetingRaw.status as any,
+      isRecurring: nextMeetingRaw.isRecurring,
+      meetingLink: nextMeetingRaw.meetingLink ?? '',
+      createdBy: nextMeetingRaw.createdBy,
+      createdAt: nextMeetingRaw.createdAt,
+      updatedAt: nextMeetingRaw.updatedAt,
+      participants: nextMeetingRaw.participants.map(p => ({
+        id: p.userId,
+        name: p.user ? (p.user.fullName ?? `${p.user.firstName ?? ''} ${p.user.lastName ?? ''}`.trim()) : 'Unknown',
+        email: p.user?.email,
+        initials: p.user ? (p.user.fullName || p.user.firstName || p.user.lastName || 'U').split(' ').map(n => n[0]).join('').toUpperCase() : 'U',
+      })),
+    } : null;
+
+    // Calculate today's summary
+    const todayMeetings = allMeetings.filter(m => {
+      const meetingDate = new Date(m.startTime);
+      return meetingDate >= todayStart && meetingDate < todayEnd;
+    });
+
+    const totalMinutes = todayMeetings.reduce((sum, m) => {
+      return sum + (m.endTime.getTime() - m.startTime.getTime()) / 60_000;
+    }, 0);
+
+    const longestMeeting = todayMeetings.reduce((longest, m) => {
+      const duration = (m.endTime.getTime() - m.startTime.getTime()) / 60_000;
+      return duration > (longest.duration || 0) ? { title: m.title, duration } : longest;
+    }, { title: '', duration: 0 });
+
+    const sortedTodayMeetings = todayMeetings.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    const firstMeetingTime = sortedTodayMeetings[0]?.startTime.toISOString() || now.toISOString();
+    const lastMeetingTime = sortedTodayMeetings[sortedTodayMeetings.length - 1]?.endTime.toISOString() || now.toISOString();
+
+    // Calculate free time remaining (simplified: from now until end of day minus meeting time)
+    const timeRemaining = todayEnd.getTime() - now.getTime();
+    const freeTimeRemaining = Math.max(0, (timeRemaining / 60_000) - totalMinutes);
+
+    const todaySummary: TodaySummary = {
+      totalMeetings: todayMeetings.length,
+      totalHours: Math.floor(totalMinutes / 60),
+      totalMinutes: totalMinutes % 60,
+      longestMeeting: longestMeeting.duration > 0 ? longestMeeting : { title: 'No meetings', duration: 0 },
+      freeTimeRemaining: Math.round(freeTimeRemaining),
+      firstMeetingTime,
+      lastMeetingTime,
+      productivityScore: analyticsData.onTimeAttendance,
+    };
+
+    // Calculate pending actions
+    const meetingsWithoutNotes = allMeetings.filter(m => !m.description || m.description.trim() === '').length;
+    const unconfirmedInvites = allMeetings.reduce((sum, m) => {
+      return sum + m.participants.filter(p => p.status === 'pending').length;
+    }, 0);
+    const followUpsRequired = allMeetings.filter(m => {
+      const completedDate = new Date(m.endTime);
+      const daysSinceCompletion = (now.getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24);
+      return m.status === 'Completed' && daysSinceCompletion <= 7 && daysSinceCompletion >= 0;
+    }).length;
+    const actionItemsPending = 0; // TODO: Implement when action items collection is available
+
+    const pendingActions: PendingActions = {
+      meetingsWithoutNotes,
+      unconfirmedInvites,
+      followUpsRequired,
+      actionItemsPending,
+      totalPending: meetingsWithoutNotes + unconfirmedInvites + followUpsRequired + actionItemsPending,
+    };
+
+    // Convert streak data
+    const streak: MeetingStreak = {
+      current: streakData.current,
+      longest: streakData.longest,
+      type: streakData.type as 'attendance' | 'participation' | 'consistency',
+    };
+
+    // Convert badges data
+    const badges: MeetingBadge[] = badgesData.map(b => ({
+      ...b,
+      earned: true,
+    }));
+
+    // Get upcoming meetings (excluding next meeting, limit to 3)
+    const upcomingMeetingsRaw = allMeetings
+      .filter(m => m.status === 'Upcoming' && m.startTime > now && (!nextMeeting || m.id !== nextMeeting.id))
+      .slice(0, 3);
+
+    const upcomingMeetings: Meeting[] = upcomingMeetingsRaw.map(m => ({
+      id: m.id,
+      title: m.title,
+      description: m.description ?? '',
+      startTime: m.startTime.toISOString(),
+      endTime: m.endTime.toISOString(),
+      status: m.status as any,
+      isRecurring: m.isRecurring,
+      meetingLink: m.meetingLink ?? '',
+      createdBy: m.createdBy,
+      createdAt: m.createdAt.toISOString(),
+      updatedAt: m.updatedAt.toISOString(),
+      participants: m.participants.map(p => ({
+        id: p.userId,
+        name: p.user ? (p.user.fullName ?? `${p.user.firstName ?? ''} ${p.user.lastName ?? ''}`.trim()) : 'Unknown',
+        email: p.user?.email,
+        initials: p.user ? (p.user.fullName || p.user.firstName || p.user.lastName || 'U').split(' ').map(n => n[0]).join('').toUpperCase() : 'U',
+      })),
+    }));
+
+    return {
+      nextMeeting,
+      todaySummary,
+      pendingActions,
+      streak,
+      badges,
+      upcomingMeetings,
+    };
+  }
+
+  // ── 6. List meetings (paginated, filterable) ─────────────────────────────────
 
   async listMeetings(dto: ListMeetingsDto, userId: string) {
     const { status, search, startDate, endDate, page = 1, limit = 20 } = dto;
@@ -276,7 +443,7 @@ export class MeetingsService {
         where,
         skip,
         take: limit,
-        orderBy: { startTime: 'asc' },
+        orderBy: { createdAt: 'desc' },
         include: { participants: { include: { user: { select: { id: true, fullName: true, firstName: true, lastName: true, email: true, avatarUrl: true } } } } },
       }),
       this.prisma.meeting.count({ where }),
@@ -298,6 +465,19 @@ export class MeetingsService {
 
     if (start >= end) {
       throw new BadRequestException('End time must be after start time');
+    }
+
+    // Validate participantIds against TeamMember collection
+    if (dto.participantIds && dto.participantIds.length > 0) {
+      const teamMembers = await this.prisma.teamMember.findMany({
+        where: { id: { in: dto.participantIds } },
+        select: { id: true },
+      });
+      const validIds = new Set(teamMembers.map((tm) => tm.id));
+      const invalidIds = dto.participantIds.filter((id) => !validIds.has(id));
+      if (invalidIds.length > 0) {
+        throw new BadRequestException('Team Members are not valid');
+      }
     }
 
     const conflict = await this.prisma.meeting.findFirst({
@@ -342,7 +522,7 @@ export class MeetingsService {
     this.eventsGateway.sendToOrg(companyId, 'MEETING_CREATED', meeting);
     this.refreshSnapshots(userId, companyId);
 
-    return formatMeeting(meeting);
+    return { message: 'Meeting created successfully' };
   }
 
   // ── 7. Update meeting ────────────────────────────────────────────────────────
@@ -363,6 +543,18 @@ export class MeetingsService {
     };
 
     if (participantIds !== undefined) {
+      // Validate participantIds against TeamMember collection
+      if (participantIds.length > 0) {
+        const teamMembers = await this.prisma.teamMember.findMany({
+          where: { id: { in: participantIds } },
+          select: { id: true },
+        });
+        const validIds = new Set(teamMembers.map((tm) => tm.id));
+        const invalidIds = participantIds.filter((id) => !validIds.has(id));
+        if (invalidIds.length > 0) {
+          throw new BadRequestException('Team Members are not valid');
+        }
+      }
       // Replace participants: delete existing, create new set
       await this.prisma.meetingParticipant.deleteMany({ where: { meetingId: id } });
       updateData.participants = {
@@ -380,7 +572,7 @@ export class MeetingsService {
     if (updated.companyId) this.eventsGateway.sendToOrg(updated.companyId, 'MEETING_UPDATED', updated);
     this.refreshSnapshots(userId, updated.companyId);
 
-    return formatMeeting(updated);
+    return { message: 'Meeting updated successfully' };
   }
 
   // ── 8. Cancel meeting ────────────────────────────────────────────────────────

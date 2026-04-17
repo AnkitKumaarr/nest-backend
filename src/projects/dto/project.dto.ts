@@ -18,6 +18,10 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  teamId: string;
 }
 
 export class UpdateProjectDto {
