@@ -3,12 +3,13 @@ import {
   Controller,
   Delete,
   Param,
+  Patch,
   Post,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { TeamMembersService } from './team-members.service';
-import { AddTeamMembersDto, ListTeamMembersDto } from './dto/team-member.dto';
+import { AddTeamMembersDto, ListTeamMembersDto, UpdateTeamMemberDto } from './dto/team-member.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 // import { PermissionsGuard } from '../common/guards/permissions.guard';
 // import { Permissions } from '../common/decorators/permissions.decorator';
@@ -32,6 +33,11 @@ export class TeamMembersController {
   @Post('list')
   listMembers(@Body() dto: ListTeamMembersDto, @Request() req) {
     return this.service.listMembers(dto, this.getCompanyId(req), req.user.sub);
+  }
+
+  @Patch('update')
+  updateMember(@Body() dto: UpdateTeamMemberDto, @Request() req) {
+    return this.service.updateMember(dto, this.getCompanyId(req));
   }
 
   @Delete(':id')

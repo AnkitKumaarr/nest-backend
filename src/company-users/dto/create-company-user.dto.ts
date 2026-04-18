@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateCompanyUserDto {
   @IsEmail()
@@ -15,4 +21,12 @@ export class CreateCompanyUserDto {
   @IsNotEmpty()
   @IsString()
   roleId: string;
+
+  @IsOptional()
+  @IsString()
+  teamId?: string;
+
+  @IsOptional()
+  @IsArray()
+  permissionsOverride?: string[];
 }

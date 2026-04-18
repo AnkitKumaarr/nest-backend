@@ -56,7 +56,7 @@ export class TeamsController {
   // @UseGuards(RolesGuard)
   // @Roles('admin')
   update(@Body() dto: UpdateTeamDto, @Request() req) {
-    return this.service.update(dto.id, dto.name, this.getCompanyId(req));
+    return this.service.update(dto.id, dto, this.getCompanyId(req));
   }
 
   @Delete(':id')

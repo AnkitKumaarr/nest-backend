@@ -60,3 +60,20 @@ export class ListTeamMembersDto {
   @Type(() => MemberFiltersDto)
   filters?: MemberFiltersDto;
 }
+
+export class UpdateTeamMemberDto {
+  @IsNotEmpty()
+  @IsString()
+  id: string;
+
+  @IsOptional()
+  @IsString()
+  roleId?: string;
+
+  @IsOptional()
+  @IsString()
+  teamId?: string;
+
+  @IsOptional()
+  isActive?: boolean;
+}

@@ -292,13 +292,14 @@ export class MailService {
           .password { font-size: 24px; font-weight: bold; color: #6c63ff; letter-spacing: 4px; font-family: 'Courier New', monospace; }
           .expiry { color: #6c757d; font-size: 14px; margin-top: 10px; }
           .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; text-align: left; border-radius: 4px; }
+          .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
           .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 12px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <div style="font-size:24px;font-weight:bold;margin-bottom:10px;">🔑 ${process.env.APP_NAME || 'TaskForge'}</div>
+            <div style="font-size:24px;font-weight:bold;margin-bottom:10px;"> ${process.env.APP_NAME || 'Prody'}</div>
             <h1>Welcome to the Team!</h1>
           </div>
           <div class="content">
@@ -311,16 +312,17 @@ export class MailService {
             <div class="warning">
               <strong>⚠️ Important:</strong> You will be required to change this password on first login.
             </div>
+            <a href="http://localhost:5173/signin" class="btn">Sign In</a>
             <p style="color:#6c757d;font-size:14px;">If you did not expect this email, please contact your Company Administrator.</p>
           </div>
           <div class="footer">
-            <p>© 2024 ${process.env.APP_NAME || 'TaskForge'}. All rights reserved.</p>
+            <p> 2024 ${process.env.APP_NAME || 'Prody'}. All rights reserved.</p>
           </div>
         </div>
       </body>
       </html>
     `;
-    await this.sendViaNodemailer(email, `🔑 Your Temporary Password - ${process.env.APP_NAME || 'TaskForge'}`, html);
+    await this.sendViaNodemailer(email, ` Your Temporary Password - ${process.env.APP_NAME || 'Prody'}`, html);
   }
 
   async sendPasswordReset(email: string, token: string) {

@@ -18,7 +18,12 @@ export class RolesService {
 
   async findAll(companyId: string) {
     return this.prisma.role.findMany({
-      where: { companyId },
+      where: {
+        OR: [
+          { companyId },
+          { companyId: null },
+        ],
+      },
       orderBy: { createdAt: 'asc' },
     });
   }

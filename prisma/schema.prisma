@@ -126,17 +126,22 @@ model CompanyUser {
   email              String    @unique
   firstName          String
   lastName           String
+  fullName           String
+  avatarUrl          String?
   companyId          String    @db.ObjectId
   company            Company   @relation(fields: [companyId], references: [id])
-  roleId             String    @db.ObjectId
-  role               Role      @relation(fields: [roleId], references: [id])
-  isActive           Boolean   @default(true)
+  roleId             String?   @db.ObjectId
+  role               Role?     @relation(fields: [roleId], references: [id])
+  teamId             String?   @db.ObjectId
+  permissionsOverride String[]
+  invitationStatus   String    @default("pending")
+  isActive           Boolean   @default(false)
   isDeleted          Boolean   @default(false)
   tempPassword       String?
   tempPasswordExpiry DateTime?
   hasChangedPassword Boolean   @default(false)
   password           String?
-  createdAt          DateTime  @default(now())
+  createdAt          DateTime? @default(now())
   updatedAt          DateTime  @updatedAt
 }
 
@@ -144,37 +149,46 @@ model Role {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   name         String
   permissions  String[]
-  companyId    String        @db.ObjectId
-  company      Company       @relation(fields: [companyId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  isDefault    Boolean       @default(false)
+  companyId    String?       @db.ObjectId
+  company      Company?      @relation(fields: [companyId], references: [id])
+  createdAt    DateTime?     @default(now())
+  updatedAt    DateTime?     @updatedAt
 
   companyUsers CompanyUser[]
 }
 
 model Team {
-  id           String       @id @default(auto()) @map("_id") @db.ObjectId
-  name         String
-  companyId    String      @db.ObjectId
-  company      Company     @relation(fields: [companyId], references: [id])
-  createdBy    CreatedBy?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  managerId   String?      @db.ObjectId
+  leadId      String?      @db.ObjectId
+  companyId   String       @db.ObjectId
+  company     Company      @relation(fields: [companyId], references: [id])
+  createdBy   CreatedBy?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   teamMembers  TeamMember[]
   projectTasks ProjectTask[]
 }
 
 model TeamMember {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  teamId    String     @db.ObjectId
-  team      Team       @relation(fields: [teamId], references: [id])
-  teamName  String
-  companyId String?    @db.ObjectId
-  name      String
-  createdBy CreatedBy?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  teamId      String     @db.ObjectId
+  team        Team       @relation(fields: [teamId], references: [id])
+  teamName    String
+  userId      String?    @db.ObjectId
+  companyId   String?    @db.ObjectId
+  name        String
+  isActive    Boolean    @default(false)
+  roleId      String?    @db.ObjectId
+  email       String?
+  role        String?
+  isLoggedIn  Boolean    @default(false)
+  createdBy   CreatedBy?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Project {

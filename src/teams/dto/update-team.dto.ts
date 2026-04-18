@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateTeamDto {
   @IsNotEmpty()
@@ -8,4 +8,17 @@ export class UpdateTeamDto {
   @IsNotEmpty()
   @IsString()
   name: string;
+
+  @IsOptional()
+  @IsString()
+  managerId?: string;
+
+  @IsOptional()
+  @IsString()
+  leadId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  memberIds?: string[];
 }

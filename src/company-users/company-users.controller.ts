@@ -15,6 +15,7 @@ import { CreateCompanyUserDto } from './dto/create-company-user.dto';
 import { UpdateCompanyUserDto } from './dto/update-company-user.dto';
 import { SigninCompanyUserDto } from './dto/signin-company-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { FilterCompanyUsersDto } from './dto/filter-company-users.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -41,7 +42,7 @@ export class CompanyUsersController {
   @UseGuards(CustomAuthGuard, RolesGuard)
   @Roles('admin')
   create(@Body() dto: CreateCompanyUserDto, @Request() req) {
-    return this.service.create(dto, req.user.companyId);
+    return this.service.create(dto, req.user.companyId, req.user.sub, req.user.fullName);
   }
 
   // Admin-only: Regenerate temp password
@@ -52,21 +53,16 @@ export class CompanyUsersController {
     return this.service.regenerateTempPassword(id, req.user.companyId);
   }
 
-  // List users (company scoped)
-  @Get()
+  // List users (company scoped with team filter)
+  @Post('list')
   @UseGuards(CustomAuthGuard)
-  findAll(
-    @Request() req,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('search') search?: string,
-  ) {
-    const companyId = req.user.companyId;
+  findAll(@Body() dto: FilterCompanyUsersDto) {
     return this.service.findAll(
-      companyId,
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 50,
-      search,
+      dto.companyId,
+      dto.teamId,
+      dto.page,
+      dto.limit,
+      dto.search,
     );
   }
 

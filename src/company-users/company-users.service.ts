@@ -25,7 +25,60 @@ export class CompanyUsersService {
     return crypto.randomBytes(8).toString('hex'); // 16-char hex string
   }
 
-  async create(dto: CreateCompanyUserDto, companyId: string) {
+  private async insertIntoTeamMember(companyUser: any, createdByUserId?: string, createdByFullName?: string) {
+    try {
+      if (!companyUser.teamId) return; // Only insert if teamId exists
+
+      const team = await this.prisma.team.findUnique({
+        where: { id: companyUser.teamId },
+        select: { name: true },
+      });
+
+      if (!team) return;
+
+      const isActive = companyUser.isActive && companyUser.hasChangedPassword;
+
+      const data: any = {
+        teamId: companyUser.teamId,
+        teamName: team.name,
+        companyId: companyUser.companyId,
+        userId: companyUser.id,
+        name: companyUser.fullName,
+        isActive,
+        roleId: companyUser.roleId,
+        email: companyUser.email,
+        role: companyUser.role?.name,
+        isLoggedIn: false,
+      };
+
+      // Only include createdBy if both userId and fullName are provided
+      if (createdByUserId && createdByFullName) {
+        data.createdBy = {
+          userId: createdByUserId,
+          name: createdByFullName,
+        };
+      }
+
+      await this.prisma.teamMember.create({ data });
+    } catch (error) {
+      console.error('Failed to insert into TeamMember:', error);
+      // No error thrown - runs silently in background
+    }
+  }
+
+  private async updateTeamMemberLoginStatus(userId: string) {
+    try {
+      await this.prisma.teamMember.updateMany({
+        where: { userId },
+        data: { isLoggedIn: true },
+      });
+    } catch (error) {
+      console.error('Failed to update TeamMember login status:', error);
+      // No error thrown - runs silently in background
+    }
+  }
+
+  async create(dto: CreateCompanyUserDto, companyId: string, createdByUserId?: string, createdByFullName?: string) {
     const existing = await this.prisma.companyUser.findUnique({
       where: { email: dto.email },
     });
@@ -37,11 +90,19 @@ export class CompanyUsersService {
       });
     }
 
-    // Verify role belongs to this company
-    const role = await this.prisma.role.findFirst({
-      where: { id: dto.roleId, companyId },
+    // Verify role exists (can be from any company or default role)
+    const role = await this.prisma.role.findUnique({
+      where: { id: dto.roleId },
     });
-    if (!role) throw new NotFoundException('Role not found in this company');
+    if (!role) throw new NotFoundException('Role not found');
+
+    // Verify teamId belongs to this company
+    if (dto.teamId) {
+      const team = await this.prisma.team.findFirst({
+        where: { id: dto.teamId, companyId },
+      });
+      if (!team) throw new NotFoundException('Team not found in this company');
+    }
 
     const tempPassword = this.generateTempPassword();
     const hashedTemp = await bcrypt.hash(tempPassword, 12);
@@ -52,8 +113,12 @@ export class CompanyUsersService {
         email: dto.email,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        fullName: `${dto.firstName} ${dto.lastName}`,
         companyId,
         roleId: dto.roleId,
+        teamId: dto.teamId ?? null,
+        permissionsOverride: dto.permissionsOverride ?? [],
+        invitationStatus: 'pending',
         tempPassword: hashedTemp,
         tempPasswordExpiry,
       },
@@ -62,21 +127,31 @@ export class CompanyUsersService {
         email: true,
         firstName: true,
         lastName: true,
+        fullName: true,
         companyId: true,
         roleId: true,
+        teamId: true,
+        invitationStatus: true,
         isActive: true,
         createdAt: true,
       },
     });
 
-    // Send temp password email
+    // Check if CompanyUser creation was successful
+    if (!user) {
+      throw new Error('Failed to send invitation');
+    }
+
+    // Insert into TeamMember collection in background (no errors to main API)
+    this.insertIntoTeamMember(user, createdByUserId, createdByFullName).catch(() => null);
+
     try {
       await this.mailService.sendTempPassword(dto.email, dto.firstName, tempPassword);
     } catch {
-      console.error('Failed to send temp password email');
+      throw new Error('Failed to send invitation');
     }
 
-    return { ...user, message: 'User created. Temporary password sent to email.' };
+    return { message: 'Invitation sent successfully' };
   }
 
   async regenerateTempPassword(id: string, companyId: string) {
@@ -107,9 +182,10 @@ export class CompanyUsersService {
     return { message: 'Temporary password regenerated and sent to email.' };
   }
 
-  async findAll(companyId: string, page = 1, limit = 50, search?: string) {
+  async findAll(companyId: string, teamId?: string, page = 1, limit = 50, search?: string) {
     const skip = (page - 1) * limit;
     const where: any = { companyId, isDeleted: false };
+    if (teamId) where.teamId = teamId;
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -126,6 +202,7 @@ export class CompanyUsersService {
         select: {
           id: true,
           email: true,
+          fullName: true,
           firstName: true,
           lastName: true,
           isActive: true,
@@ -254,8 +331,8 @@ export class CompanyUsersService {
       type: 'company-user',
       companyId: user.companyId,
       roleId: user.roleId,
-      role: user.role.name,
-      permissions: user.role.permissions,
+      role: user.role?.name,
+      permissions: user.role?.permissions,
     };
 
     const access_token = await this.jwtService.signAsync(payload, {
@@ -264,6 +341,9 @@ export class CompanyUsersService {
     const refresh_token = await this.jwtService.signAsync(payload, {
       expiresIn: '7d',
     });
+
+    // Update TeamMember login status in background
+    this.updateTeamMemberLoginStatus(user.id).catch(() => null);
 
     return {
       access_token,
@@ -275,8 +355,8 @@ export class CompanyUsersService {
         firstName: user.firstName,
         lastName: user.lastName,
         companyId: user.companyId,
-        role: user.role.name,
-        permissions: user.role.permissions,
+        role: user.role?.name,
+        permissions: user.role?.permissions,
       },
     };
   }
