@@ -16,7 +16,7 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto) {
-    return this.prisma.user.create({
+    await this.prisma.user.create({
       data: {
         ...createUserDto,
         lastName: createUserDto.lastName || null,
@@ -26,6 +26,8 @@ export class UsersService {
         ),
       },
     });
+
+    return { message: 'User created successfully' };
   }
 
   async findAll(page = 1, limit = 25, search?: string) {
@@ -79,7 +81,8 @@ export class UsersService {
 
     if (updateUserDto.firstName || updateUserDto.lastName) {
       const currentUser = await this.prisma.user.findUnique({ where: { id } });
-      if (!currentUser) throw new NotFoundException(`User with ID ${id} not found`);
+      if (!currentUser)
+        throw new NotFoundException(`User with ID ${id} not found`);
 
       const firstName = updateUserDto.firstName || currentUser.firstName;
       const lastName =
@@ -92,7 +95,12 @@ export class UsersService {
       );
     }
 
-    return this.prisma.user.update({ where: { id }, data: updateData });
+    await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return { message: 'Profile updated successfully' };
   }
 
   async remove(id: string) {
@@ -122,21 +130,24 @@ export class UsersService {
 
     return {
       id: user.id,
-      name: user.fullName ?? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      fullName: user.fullName,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       location: user.location ?? null,
       jobPost: user.jobPost ?? null,
       studyAt: user.studyAt ?? null,
       about: user.about ?? null,
       avatarUrl: user.avatarUrl ?? null,
-      socialLinks: (user.socialLinks as any[]) ?? [],
+      socialLinks: user.socialLinks ?? [],
     };
   }
 
   async updateProfile(
     userId: string,
     dto: {
-      name?: string;
+      firstName?: string;
+      lastName?: string;
       email?: string;
       location?: string;
       jobPost?: string;
@@ -145,11 +156,11 @@ export class UsersService {
     },
   ) {
     const data: any = {};
-    if (dto.name !== undefined) {
-      data.fullName = dto.name;
-      const parts = dto.name.trim().split(' ');
-      data.firstName = parts[0];
-      data.lastName = parts.slice(1).join(' ') || null;
+    if (dto.firstName !== undefined || dto.lastName !== undefined) {
+      const fullName = [dto.firstName, dto.lastName].filter(Boolean).join(' ');
+      data.fullName = fullName || null;
+      data.firstName = dto.firstName ?? null;
+      data.lastName = dto.lastName ?? null;
     }
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.location !== undefined) data.location = dto.location;
@@ -157,12 +168,14 @@ export class UsersService {
     if (dto.studyAt !== undefined) data.studyAt = dto.studyAt;
     if (dto.about !== undefined) data.about = dto.about;
 
-    const updated = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id: userId },
       data,
       select: {
         id: true,
         fullName: true,
+        firstName: true,
+        lastName: true,
         email: true,
         location: true,
         jobPost: true,
@@ -172,32 +185,19 @@ export class UsersService {
       },
     });
 
-    return {
-      id: updated.id,
-      name: updated.fullName,
-      email: updated.email,
-      location: updated.location,
-      jobPost: updated.jobPost,
-      studyAt: updated.studyAt,
-      about: updated.about,
-      updatedAt: updated.updatedAt,
-    };
+    return { message: 'Profile updated successfully' };
   }
 
   async updateSocialLinks(
     userId: string,
     socialLinks: { platform: string; url: string }[],
   ) {
-    const updated = await this.prisma.user.update({
+    await this.prisma.user.update({
       where: { id: userId },
       data: { socialLinks: socialLinks as any },
-      select: { socialLinks: true, updatedAt: true },
     });
 
-    return {
-      socialLinks: (updated.socialLinks as any[]) ?? [],
-      updatedAt: updated.updatedAt,
-    };
+    return { message: 'Social links updated successfully' };
   }
 
   async uploadAvatar(userId: string, filename: string, baseUrl: string) {
@@ -206,12 +206,14 @@ export class UsersService {
       where: { id: userId },
       data: { avatarUrl },
     });
-    return { avatarUrl };
+    return { message: 'Avatar uploaded successfully' };
   }
 
   async deleteAccount(userId: string, confirmation: string) {
     if (confirmation !== 'DELETE') {
-      throw new BadRequestException('Confirmation text must be exactly "DELETE"');
+      throw new BadRequestException(
+        'Confirmation text must be exactly "DELETE"',
+      );
     }
     await this.prisma.user.delete({ where: { id: userId } });
     return { message: 'Account deleted successfully' };
