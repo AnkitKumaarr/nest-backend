@@ -209,10 +209,10 @@ model ProjectTask {
   creatorName    String?
   inChargeId     String?     @db.ObjectId @map("inchargeId")
   inChargeName   String?     @map("inchargeName")
-  teamId         String      @db.ObjectId
-  team           Team        @relation(fields: [teamId], references: [id])
-  companyId      String      @db.ObjectId
-  company        Company     @relation(fields: [companyId], references: [id])
+  teamId         String?     @db.ObjectId
+  team           Team?       @relation(fields: [teamId], references: [id])
+  companyId      String?     @db.ObjectId
+  company        Company?    @relation(fields: [companyId], references: [id])
   logTime        String?
   assignDate     DateTime?
   assignedUserId String?     @db.ObjectId

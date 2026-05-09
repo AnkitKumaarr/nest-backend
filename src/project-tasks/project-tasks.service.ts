@@ -147,7 +147,8 @@ export class ProjectTasksService {
     const limit = dto.limit ?? 50;
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = {};
+    if (companyId) where.companyId = companyId;
     if (dto.teamId) where.teamId = dto.teamId;
 
     const [tasks, total] = await Promise.all([
@@ -267,9 +268,11 @@ export class ProjectTasksService {
       } as any,
     });
 
-    this.taskSnapshots.refreshTeamSnapshots(task.teamId).catch(() => null);
+    if (task.teamId) {
+      this.taskSnapshots.refreshTeamSnapshots(task.teamId).catch(() => null);
+      this.analyticsSnapshots.refreshTeamSnapshot(task.teamId).catch(() => null);
+    }
     this.taskSnapshots.refreshIndividualSnapshots(userId).catch(() => null);
-    this.analyticsSnapshots.refreshTeamSnapshot(task.teamId).catch(() => null);
     this.analyticsSnapshots.refreshUserSnapshot(userId).catch(() => null);
 
     return { message: 'Task updated successfully' };
@@ -299,10 +302,14 @@ export class ProjectTasksService {
     await this.prisma.comment.deleteMany({ where: { taskId: id } });
     await this.prisma.projectTask.delete({ where: { id } });
 
-    this.taskSnapshots.refreshTeamSnapshots(teamId).catch(() => null);
-    this.taskSnapshots.refreshIndividualSnapshots(creatorId).catch(() => null);
-    this.analyticsSnapshots.refreshTeamSnapshot(teamId).catch(() => null);
-    this.analyticsSnapshots.refreshUserSnapshot(creatorId).catch(() => null);
+    if (teamId) {
+      this.taskSnapshots.refreshTeamSnapshots(teamId).catch(() => null);
+      this.analyticsSnapshots.refreshTeamSnapshot(teamId).catch(() => null);
+    }
+    if (creatorId) {
+      this.taskSnapshots.refreshIndividualSnapshots(creatorId).catch(() => null);
+      this.analyticsSnapshots.refreshUserSnapshot(creatorId).catch(() => null);
+    }
 
     return { message: 'Task deleted successfully' };
   }
