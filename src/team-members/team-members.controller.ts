@@ -2,48 +2,46 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { TeamMembersService } from './team-members.service';
 import { AddTeamMembersDto, ListTeamMembersDto, UpdateTeamMemberDto } from './dto/team-member.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
-// import { PermissionsGuard } from '../common/guards/permissions.guard';
-// import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('team-members')
 @UseGuards(CustomAuthGuard)
 export class TeamMembersController {
   constructor(private readonly service: TeamMembersService) {}
 
-  private getCompanyId(req: any): string {
-    return req.user.companyId;
+  private getCompanyId(req: any): string { return req.user.companyId; }
+
+  /** GET /api/v1/team-members */
+  @Get()
+  listMembers(@Query() dto: ListTeamMembersDto, @Request() req) {
+    return this.service.listMembers(dto, this.getCompanyId(req), req.user.sub);
   }
 
+  /** POST /api/v1/team-members */
   @Post()
-  // @UseGuards(PermissionsGuard)
-  // @Permissions('team:manage-members')
   addMembers(@Body() dto: AddTeamMembersDto, @Request() req) {
     return this.service.addMembers(dto, this.getCompanyId(req));
   }
 
-  @Post('list')
-  listMembers(@Body() dto: ListTeamMembersDto, @Request() req) {
-    return this.service.listMembers(dto, this.getCompanyId(req), req.user.sub);
+  /** PATCH /api/v1/team-members/:memberId */
+  @Patch(':memberId')
+  updateMember(@Param('memberId') memberId: string, @Body() dto: UpdateTeamMemberDto, @Request() req) {
+    return this.service.updateMember({ ...dto, id: memberId }, this.getCompanyId(req));
   }
 
-  @Patch('update')
-  updateMember(@Body() dto: UpdateTeamMemberDto, @Request() req) {
-    return this.service.updateMember(dto, this.getCompanyId(req));
-  }
-
-  @Delete(':id')
-  // @UseGuards(PermissionsGuard)
-  // @Permissions('team:manage-members')
-  removeMember(@Param('id') id: string, @Request() req) {
-    return this.service.removeMember(id, this.getCompanyId(req));
+  /** DELETE /api/v1/team-members/:memberId */
+  @Delete(':memberId')
+  removeMember(@Param('memberId') memberId: string, @Request() req) {
+    return this.service.removeMember(memberId, this.getCompanyId(req));
   }
 }

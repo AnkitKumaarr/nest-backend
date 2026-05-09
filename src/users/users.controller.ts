@@ -1,14 +1,14 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
   Patch,
-  Param,
   Delete,
+  Body,
+  Param,
   Query,
   UseGuards,
   Request,
+  Post,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
@@ -18,12 +18,9 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { IsOptional, IsString, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ListUsersDto } from './dto/list-users.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSocialLinksDto } from './dto/update-social-links.dto';
-import { DeleteAccountDto } from './dto/delete-account.dto';
 import { UsersService } from './users.service';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 
@@ -40,42 +37,48 @@ class ParticipantsQueryDto {
 }
 
 @Controller('users')
+@UseGuards(CustomAuthGuard)
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
 
-  // ─── Static routes (must come before /:id) ────────────────────────────────
-
-  /** GET /api/users/participants */
-  @Get('participants')
-  @UseGuards(CustomAuthGuard)
-  getParticipants(@Query() query: ParticipantsQueryDto) {
-    return this.userService.getParticipants(query.search, query.limit);
+  /** GET /api/v1/users */
+  @Get()
+  findAll(@Query('page') page = 1, @Query('limit') limit = 25, @Query('search') search?: string) {
+    return this.userService.findAll(Number(page), Number(limit), search);
   }
 
-  /** GET /api/users/profile */
+  /** GET /api/v1/users/profile */
   @Get('profile')
-  @UseGuards(CustomAuthGuard)
   getProfile(@Request() req) {
     return this.userService.getProfile(req.user.sub);
   }
 
-  /** PATCH /api/users/profile */
+  /** GET /api/v1/users/participants */
+  @Get('participants')
+  getParticipants(@Query() query: ParticipantsQueryDto) {
+    return this.userService.getParticipants(query.search, query.limit);
+  }
+
+  /** PATCH /api/v1/users/profile */
   @Patch('profile')
-  @UseGuards(CustomAuthGuard)
   updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
     return this.userService.updateProfile(req.user.sub, dto);
   }
 
-  /** PATCH /api/users/social-links */
+  /** PATCH /api/v1/users/social-links */
   @Patch('social-links')
-  @UseGuards(CustomAuthGuard)
   updateSocialLinks(@Request() req, @Body() dto: UpdateSocialLinksDto) {
     return this.userService.updateSocialLinks(req.user.sub, dto.socialLinks);
   }
 
-  /** POST /api/users/avatar — multipart upload */
+  /** DELETE /api/v1/users/profile */
+  @Delete('profile')
+  deleteAccount(@Request() req) {
+    return this.userService.deleteAccount(req.user.sub, 'DELETE');
+  }
+
+  /** POST /api/v1/users/avatar */
   @Post('avatar')
-  @UseGuards(CustomAuthGuard)
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: diskStorage({
@@ -101,37 +104,9 @@ export class UsersController {
     return this.userService.uploadAvatar(req.user.sub, file.filename, baseUrl);
   }
 
-  /** DELETE /api/users/account */
-  @Delete('account')
-  @UseGuards(CustomAuthGuard)
-  deleteAccount(@Request() req, @Body() dto: DeleteAccountDto) {
-    return this.userService.deleteAccount(req.user.sub, dto.confirmation);
-  }
-
-  // ─── Admin / internal CRUD ────────────────────────────────────────────────
-
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
-
-  @Post('list')
-  findAll(@Body() dto: ListUsersDto) {
-    return this.userService.findAll(dto.page ?? 1, dto.limit ?? 25, dto.search);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findOne(id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(id, updateUserDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(id);
+  /** PATCH /api/v1/users/:userId */
+  @Patch(':userId')
+  update(@Param('userId') userId: string, @Body() dto: UpdateUserDto) {
+    return this.userService.update(userId, dto);
   }
 }

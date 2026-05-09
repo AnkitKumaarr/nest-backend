@@ -25,7 +25,7 @@ import { UpdateFileDto } from './dto/update-file.dto';
 import { ListFilesDto } from './dto/list-files.dto';
 import { CreateFileDto } from './dto/create-file.dto';
 
-@Controller('api/file-manager')
+@Controller('file-manager')
 @UseGuards(CustomAuthGuard)
 export class FileManagerController {
   constructor(private readonly fileManagerService: FileManagerService) {}

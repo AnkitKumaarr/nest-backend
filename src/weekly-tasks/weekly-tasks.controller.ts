@@ -4,8 +4,9 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -20,33 +21,35 @@ import { CustomAuthGuard } from '../auth/guards/auth.guard';
 export class WeeklyTasksController {
   constructor(private readonly service: WeeklyTasksService) {}
 
-  private getCompanyId(req: any): string | undefined {
-    return req.user.companyId ?? undefined;
+  private getCompanyId(req: any): string | undefined { return req.user.companyId ?? undefined; }
+
+  /** GET /api/v1/weekly-tasks */
+  @Get()
+  findAll(@Query() dto: ListWeeklyTaskDto, @Request() req) {
+    return this.service.findAll(dto, req.user.sub, this.getCompanyId(req));
   }
 
+  /** POST /api/v1/weekly-tasks */
   @Post()
   create(@Body() dto: CreateWeeklyTaskDto, @Request() req) {
     return this.service.create(dto, req.user.sub, this.getCompanyId(req));
   }
 
-  // POST used instead of GET to support body payload with filters + pagination
-  @Post('list')
-  findAll(@Body() dto: ListWeeklyTaskDto, @Request() req) {
-    return this.service.findAll(dto, req.user.sub, this.getCompanyId(req));
+  /** GET /api/v1/weekly-tasks/:weeklyTaskId */
+  @Get(':weeklyTaskId')
+  findOne(@Param('weeklyTaskId') weeklyTaskId: string, @Request() req) {
+    return this.service.findOne(weeklyTaskId, req.user.sub, this.getCompanyId(req));
   }
 
-  @Get(':taskId')
-  findOne(@Param('taskId') taskId: string, @Request() req) {
-    return this.service.findOne(taskId, req.user.sub, this.getCompanyId(req));
+  /** PATCH /api/v1/weekly-tasks/:weeklyTaskId */
+  @Patch(':weeklyTaskId')
+  update(@Param('weeklyTaskId') weeklyTaskId: string, @Body() dto: UpdateWeeklyTaskDto, @Request() req) {
+    return this.service.update({ ...dto, id: weeklyTaskId }, req.user.sub);
   }
 
-  @Put()
-  update(@Body() dto: UpdateWeeklyTaskDto, @Request() req) {
-    return this.service.update(dto, req.user.sub);
-  }
-
-  @Delete(':taskId')
-  remove(@Param('taskId') taskId: string, @Request() req) {
-    return this.service.remove(taskId, req.user.sub);
+  /** DELETE /api/v1/weekly-tasks/:weeklyTaskId */
+  @Delete(':weeklyTaskId')
+  remove(@Param('weeklyTaskId') weeklyTaskId: string, @Request() req) {
+    return this.service.remove(weeklyTaskId, req.user.sub);
   }
 }

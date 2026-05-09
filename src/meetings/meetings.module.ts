@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { MeetingsService } from './meetings.service';
 import { MeetingsController } from './meetings.controller';
-import { MeetingVisualsModule } from '../meeting-visuals/meeting-visuals.module';
-import { AnalyticsSnapshotModule } from '../analytics-snapshot/analytics-snapshot.module';
+import { MeetingSnapshotsModule } from '../meeting-snapshots/meeting-snapshots.module';
+import { AnalyticsSnapshotsModule } from '../analytics-snapshots/analytics-snapshots.module';
 
 @Module({
-  imports: [MeetingVisualsModule, AnalyticsSnapshotModule],
+  imports: [MeetingSnapshotsModule, AnalyticsSnapshotsModule],
   controllers: [MeetingsController],
   providers: [MeetingsService, JwtService],
 })

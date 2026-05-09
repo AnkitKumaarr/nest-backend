@@ -7,13 +7,10 @@ export class RolesService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateRoleDto, companyId: string) {
-    return this.prisma.role.create({
-      data: {
-        name: dto.name,
-        permissions: dto.permissions,
-        companyId,
-      },
+    await this.prisma.role.create({
+      data: { name: dto.name, permissions: dto.permissions, companyId },
     });
+    return { message: 'Role created successfully' };
   }
 
   async findAll(companyId: string) {
@@ -28,13 +25,27 @@ export class RolesService {
     });
   }
 
+  async findOne(id: string, companyId: string) {
+    const role = await this.prisma.role.findFirst({ where: { id, companyId } });
+    if (!role) throw new NotFoundException('Role not found');
+    return role;
+  }
+
+  async remove(id: string, companyId: string) {
+    const role = await this.prisma.role.findFirst({ where: { id, companyId } });
+    if (!role) throw new NotFoundException('Role not found');
+    await this.prisma.role.delete({ where: { id } });
+    return { message: 'Role deleted successfully' };
+  }
+
   async update(id: string, dto: CreateRoleDto, companyId: string) {
     const role = await this.prisma.role.findFirst({ where: { id, companyId } });
     if (!role) throw new NotFoundException('Role not found');
 
-    return this.prisma.role.update({
+    await this.prisma.role.update({
       where: { id },
       data: { name: dto.name, permissions: dto.permissions },
     });
+    return { message: 'Role updated successfully' };
   }
 }

@@ -147,6 +147,12 @@ export class WeeksService {
     });
   }
 
+  async findOne(id: string, userId: string) {
+    const week = await this.prisma.week.findFirst({ where: { id, userId } });
+    if (!week) throw new NotFoundException('Week not found');
+    return week;
+  }
+
   async findAll(userId: string, companyId?: string | null, year?: number) {
     const now = new Date();
     await this.ensureMonthWeeksExist(

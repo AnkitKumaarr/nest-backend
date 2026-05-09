@@ -70,14 +70,16 @@ export class NotificationsService {
 
   async markAsRead(id: string, userId: string) {
     await this.assertOwnership(id, userId);
-    return this.prisma.notification.update({ where: { id }, data: { read: true } });
+    await this.prisma.notification.update({ where: { id }, data: { read: true } });
+    return { message: 'Notification marked as read' };
   }
 
   // ── 3. Mark one as unread ────────────────────────────────────────────────────
 
   async markAsUnread(id: string, userId: string) {
     await this.assertOwnership(id, userId);
-    return this.prisma.notification.update({ where: { id }, data: { read: false } });
+    await this.prisma.notification.update({ where: { id }, data: { read: false } });
+    return { message: 'Notification marked as unread' };
   }
 
   // ── 4. Mark all as read ──────────────────────────────────────────────────────

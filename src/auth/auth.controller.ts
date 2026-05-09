@@ -5,6 +5,8 @@ import {
   Get,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -17,49 +19,55 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  async signup(@Body() dto: SignupDto) {
+  @HttpCode(HttpStatus.CREATED)
+  signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
   }
 
   @Post('verify-email')
-  async verify(@Body() body: { email: string; otp: string }) {
+  verifyEmail(@Body() body: { email: string; otp: string }) {
     return this.authService.verifyEmail(body.email, body.otp);
   }
 
   @Post('signin')
-  async signin(@Body() body: { email: string; password: string }) {
+  signin(@Body() body: { email: string; password: string }) {
     return this.authService.signIn(body.email, body.password);
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body() body: { email: string }) {
+  forgotPassword(@Body() body: { email: string }) {
     return this.authService.forgotPassword(body.email);
   }
 
   @Post('reset-password')
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
   }
+
   @Post('resend-otp')
-  async resendOtp(@Body() body: { email: string }) {
+  resendOtp(@Body() body: { email: string }) {
     return this.authService.resendOtp(body.email);
   }
+
   @Post('google')
-  async googleLogin(@Body() body: { idToken: string }) {
+  googleLogin(@Body() body: { idToken: string }) {
     return this.authService.googleAuth(body);
   }
 
   @Post('refresh-token')
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+  refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto);
   }
 
-  // Example of a Protected Route
+  @UseGuards(CustomAuthGuard)
+  @Post('change-password')
+  changePassword(@Request() req, @Body() body: { currentPassword: string; newPassword: string }) {
+    return this.authService.changePassword(req.user.sub, body.currentPassword, body.newPassword);
+  }
+
   @UseGuards(CustomAuthGuard)
   @Get('me')
-  async getProfile(@Request() req) {
-    const userId = req.user.sub; // Get user ID from JWT payload
-    const user = await this.authService.getUserById(userId);
-    return user;
+  getProfile(@Request() req) {
+    return this.authService.getUserById(req.user.sub);
   }
 }

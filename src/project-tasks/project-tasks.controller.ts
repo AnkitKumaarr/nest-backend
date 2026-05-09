@@ -4,66 +4,53 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { ProjectTasksService } from './project-tasks.service';
 import { CreateProjectTaskDto } from './dto/create-project-task.dto';
-import { ListTasksDto } from './dto/list-tasks.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { ListProjectTasksDto } from './dto/list-project-tasks.dto';
+import { UpdateProjectTaskDto } from './dto/update-project-task.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
-import { PermissionsGuard } from '../common/guards/permissions.guard';
-import { Permissions } from '../common/decorators/permissions.decorator';
 
 @Controller('project-tasks')
 @UseGuards(CustomAuthGuard)
 export class ProjectTasksController {
   constructor(private readonly service: ProjectTasksService) {}
 
-  private getCompanyId(req: any): string {
-    return req.user.companyId;
+  private getCompanyId(req: any): string { return req.user.companyId; }
+  private getPermissions(req: any): string[] { return req.user.permissions ?? []; }
+
+  /** GET /api/v1/project-tasks */
+  @Get()
+  listTasks(@Query() dto: ListProjectTasksDto, @Request() req) {
+    return this.service.findAll(dto, this.getCompanyId(req));
   }
 
-  private getPermissions(req: any): string[] {
-    return req.user.permissions ?? [];
-  }
-
+  /** POST /api/v1/project-tasks */
   @Post()
-  // @UseGuards(PermissionsGuard)
-  // @Permissions('task:create')
   create(@Body() dto: CreateProjectTaskDto, @Request() req) {
     return this.service.create(dto, req.user.sub, this.getCompanyId(req));
   }
 
-  @Post('list')
-  listTasks(@Body() dto: ListTasksDto, @Request() req) {
-    return this.service.findAll(dto, this.getCompanyId(req));
+  /** GET /api/v1/project-tasks/:taskId */
+  @Get(':taskId')
+  findOne(@Param('taskId') taskId: string, @Request() req) {
+    return this.service.findOne(taskId, this.getCompanyId(req));
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
-    return this.service.findOne(id, this.getCompanyId(req));
+  /** PATCH /api/v1/project-tasks/:taskId */
+  @Patch(':taskId')
+  update(@Param('taskId') taskId: string, @Body() dto: UpdateProjectTaskDto, @Request() req) {
+    return this.service.update({ ...dto, taskId }, req.user.sub, this.getCompanyId(req), this.getPermissions(req));
   }
 
-  @Put()
-  update(@Body() dto: UpdateTaskDto, @Request() req) {
-    return this.service.update(
-      dto,
-      req.user.sub,
-      this.getCompanyId(req),
-      this.getPermissions(req),
-    );
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string, @Request() req) {
-    return this.service.remove(
-      id,
-      req.user.sub,
-      this.getCompanyId(req),
-      this.getPermissions(req),
-    );
+  /** DELETE /api/v1/project-tasks/:taskId */
+  @Delete(':taskId')
+  remove(@Param('taskId') taskId: string, @Request() req) {
+    return this.service.remove(taskId, req.user.sub, this.getCompanyId(req), this.getPermissions(req));
   }
 }

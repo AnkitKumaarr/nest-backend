@@ -7,8 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 import { EventsGateway } from '../gateways/events.gateway';
-import { MeetingVisualsService } from '../meeting-visuals/meeting-visuals.service';
-import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
+import { MeetingSnapshotsService } from '../meeting-snapshots/meeting-snapshots.service';
+import { AnalyticsSnapshotsService } from '../analytics-snapshots/analytics-snapshots.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { ListMeetingsDto } from './dto/list-meetings.dto';
@@ -162,8 +162,8 @@ export class MeetingsService {
     private readonly prisma: PrismaService,
     private readonly activityLogs: ActivityLogsService,
     private readonly eventsGateway: EventsGateway,
-    private readonly meetingVisuals: MeetingVisualsService,
-    private readonly analyticsSnapshot: AnalyticsSnapshotService,
+    private readonly meetingVisuals: MeetingSnapshotsService,
+    private readonly analyticsSnapshot: AnalyticsSnapshotsService,
   ) {}
 
   // ── 1. Analytics (overview summary cards) ───────────────────────────────────
@@ -457,7 +457,21 @@ export class MeetingsService {
     };
   }
 
-  // ── 6. Create meeting ────────────────────────────────────────────────────────
+  // ── 6. Find single meeting ───────────────────────────────────────────────────
+
+  async findOne(id: string, userId: string) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: {
+        id,
+        ...userMeetingFilter(userId),
+      },
+      include: { participants: { include: { user: { select: { id: true, fullName: true, firstName: true, lastName: true, email: true, avatarUrl: true } } } } },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+    return formatMeeting(meeting);
+  }
+
+  // ── 7. Create meeting ────────────────────────────────────────────────────────
 
   async create(dto: CreateMeetingDto, userId: string, companyId: string) {
     const start = new Date(dto.startTime);
@@ -599,11 +613,7 @@ export class MeetingsService {
     if (updated.companyId) this.eventsGateway.sendToOrg(updated.companyId, 'MEETING_CANCELLED', { id, status: 'Canceled' });
     this.refreshSnapshots(userId, updated.companyId);
 
-    return {
-      id: updated.id,
-      status: updated.status,
-      updatedAt: updated.updatedAt.toISOString(),
-    };
+    return { message: 'Meeting cancelled successfully' };
   }
 
   // ── 9. Delete meeting ────────────────────────────────────────────────────────

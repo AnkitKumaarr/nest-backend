@@ -1,10 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -20,22 +21,33 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class RolesController {
   constructor(private readonly service: RolesService) {}
 
-  @Post()
-  create(@Body() dto: CreateRoleDto, @Request() req) {
-    return this.service.create(dto, req.user.companyId);
-  }
-
+  /** GET /api/v1/roles */
   @Get()
   findAll(@Request() req) {
     return this.service.findAll(req.user.companyId);
   }
 
-  @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: CreateRoleDto,
-    @Request() req,
-  ) {
-    return this.service.update(id, dto, req.user.companyId);
+  /** POST /api/v1/roles */
+  @Post()
+  create(@Body() dto: CreateRoleDto, @Request() req) {
+    return this.service.create(dto, req.user.companyId);
+  }
+
+  /** GET /api/v1/roles/:roleId */
+  @Get(':roleId')
+  findOne(@Param('roleId') roleId: string, @Request() req) {
+    return this.service.findOne(roleId, req.user.companyId);
+  }
+
+  /** PATCH /api/v1/roles/:roleId */
+  @Patch(':roleId')
+  update(@Param('roleId') roleId: string, @Body() dto: CreateRoleDto, @Request() req) {
+    return this.service.update(roleId, dto, req.user.companyId);
+  }
+
+  /** DELETE /api/v1/roles/:roleId */
+  @Delete(':roleId')
+  remove(@Param('roleId') roleId: string, @Request() req) {
+    return this.service.remove(roleId, req.user.companyId);
   }
 }

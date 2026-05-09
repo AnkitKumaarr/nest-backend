@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddTeamMembersDto, ListTeamMembersDto, UpdateTeamMemberDto } from './dto/team-member.dto';
-import { TeamSnapshotService } from '../team-snapshot/team-snapshot.service';
+import { AnalyticsSnapshotsService } from '../analytics-snapshots/analytics-snapshots.service';
 
 @Injectable()
 export class TeamMembersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly teamSnapshot: TeamSnapshotService,
+    private readonly analyticsSnapshots: AnalyticsSnapshotsService,
   ) {}
 
   async addMembers(dto: AddTeamMembersDto, companyId: string) {
@@ -24,7 +24,7 @@ export class TeamMembersService {
       })),
     });
 
-    this.teamSnapshot.refreshTeamSnapshots(dto.teamId).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(dto.teamId).catch(() => null);
     return { message: `${dto.members.length} member(s) added to team` };
   }
 
@@ -36,8 +36,6 @@ export class TeamMembersService {
     const limit = dto.limit ?? 25;
     const skip = (page - 1) * limit;
     const where: any = { teamId: dto.teamId };
-
-    // Removed userId createdBy filter to return all team members
 
     if (dto.filters?.startDate || dto.filters?.endDate) {
       where.createdAt = {};
@@ -58,7 +56,7 @@ export class TeamMembersService {
     if (!member) throw new NotFoundException('Member not found');
 
     await this.prisma.teamMember.delete({ where: { id: memberId } });
-    this.teamSnapshot.refreshTeamSnapshots(member.teamId).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(member.teamId).catch(() => null);
     return { message: 'Member removed from team' };
   }
 
@@ -68,13 +66,11 @@ export class TeamMembersService {
     });
     if (!teamMember) throw new NotFoundException('Team member not found');
 
-    // Prepare update data for TeamMember
     const teamMemberUpdateData: any = {};
     if (dto.roleId !== undefined) teamMemberUpdateData.roleId = dto.roleId;
     if (dto.teamId !== undefined) teamMemberUpdateData.teamId = dto.teamId;
     if (dto.isActive !== undefined) teamMemberUpdateData.isActive = dto.isActive;
 
-    // Update teamName if teamId is being changed
     if (dto.teamId) {
       const team = await this.prisma.team.findUnique({
         where: { id: dto.teamId },
@@ -84,19 +80,16 @@ export class TeamMembersService {
       teamMemberUpdateData.teamName = team.name;
     }
 
-    // Update TeamMember
     await this.prisma.teamMember.update({
       where: { id: dto.id },
       data: teamMemberUpdateData,
     });
 
-    // Update related CompanyUser document
     if (teamMember.userId) {
       const companyUserUpdateData: any = {};
       if (dto.teamId !== undefined) companyUserUpdateData.teamId = dto.teamId;
       if (dto.roleId !== undefined) {
         companyUserUpdateData.roleId = dto.roleId;
-        // Update permissionsOverride based on new role
         const role = await this.prisma.role.findUnique({
           where: { id: dto.roleId },
           select: { permissions: true },
@@ -114,11 +107,10 @@ export class TeamMembersService {
       }
     }
 
-    // Refresh team snapshot if team changed
     if (dto.teamId && dto.teamId !== teamMember.teamId) {
-      this.teamSnapshot.refreshTeamSnapshots(dto.teamId).catch(() => null);
+      this.analyticsSnapshots.refreshTeamSnapshot(dto.teamId).catch(() => null);
       if (teamMember.teamId) {
-        this.teamSnapshot.refreshTeamSnapshots(teamMember.teamId).catch(() => null);
+        this.analyticsSnapshots.refreshTeamSnapshot(teamMember.teamId).catch(() => null);
       }
     }
 

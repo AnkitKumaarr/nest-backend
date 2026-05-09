@@ -2,13 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
-import { TeamSnapshotService } from '../team-snapshot/team-snapshot.service';
+import { AnalyticsSnapshotsService } from '../analytics-snapshots/analytics-snapshots.service';
 
 @Injectable()
 export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly teamSnapshot: TeamSnapshotService,
+    private readonly analyticsSnapshots: AnalyticsSnapshotsService,
   ) {}
 
   async create(dto: CreateTeamDto, companyId: string) {
@@ -38,7 +38,7 @@ export class TeamsService {
       });
     }
 
-    this.teamSnapshot.refreshTeamSnapshots(team.id).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(team.id).catch(() => null);
     return { message: 'Team created successfully' };
   }
 
@@ -119,7 +119,7 @@ export class TeamsService {
       }
     }
 
-    this.teamSnapshot.refreshTeamSnapshots(id).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(id).catch(() => null);
     return { message: 'Team updated successfully' };
   }
 

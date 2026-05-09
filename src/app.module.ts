@@ -4,7 +4,6 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MeetingsModule } from './meetings/meetings.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 import { ActivityLogsModule } from './activity-logs/activity-logs.module';
 import { EventsModule } from './gateways/events.module';
 import { MailModule } from './mail/mail.module';
@@ -18,13 +17,11 @@ import { CommentsModule } from './comments/comments.module';
 import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { WeeksModule } from './weeks/weeks.module';
 import { WeeklyTasksModule } from './weekly-tasks/weekly-tasks.module';
-import { LeaderModule } from './leader/leader.module';
-import { PriorityModule } from './priority/priority.module';
-import { StatusModule } from './status/status.module';
-import { TaskVisualsModule } from './task-visuals/task-visuals.module';
-import { MeetingVisualsModule } from './meeting-visuals/meeting-visuals.module';
-import { AnalyticsSnapshotModule } from './analytics-snapshot/analytics-snapshot.module';
-import { TeamSnapshotModule } from './team-snapshot/team-snapshot.module';
+import { TaskPriorityModule } from './task-priority/task-priority.module';
+import { TaskStatusModule } from './task-status/task-status.module';
+import { TaskSnapshotsModule } from './task-snapshots/task-snapshots.module';
+import { MeetingSnapshotsModule } from './meeting-snapshots/meeting-snapshots.module';
+import { AnalyticsSnapshotsModule } from './analytics-snapshots/analytics-snapshots.module';
 import { SettingsModule } from './settings/settings.module';
 import { FileManagerModule } from './file-manager/file-manager.module';
 
@@ -36,7 +33,6 @@ import { FileManagerModule } from './file-manager/file-manager.module';
     AuthModule,
     NotificationsModule,
     MeetingsModule,
-    AnalyticsModule,
     ActivityLogsModule,
     MailModule,
     // ── TaskForge Modules ──────────────────────────
@@ -50,16 +46,13 @@ import { FileManagerModule } from './file-manager/file-manager.module';
     ProjectTasksModule,
     WeeksModule,
     WeeklyTasksModule,
-    LeaderModule,
-    PriorityModule,
-    StatusModule,
-    TaskVisualsModule,
-    MeetingVisualsModule,
-    AnalyticsSnapshotModule,
-    TeamSnapshotModule,
+    TaskPriorityModule,
+    TaskStatusModule,
+    TaskSnapshotsModule,
+    MeetingSnapshotsModule,
+    AnalyticsSnapshotsModule,
     SettingsModule,
     FileManagerModule,
   ],
-
 })
 export class AppModule {}

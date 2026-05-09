@@ -340,30 +340,30 @@ model WeekTask {
 
 
 
-model Priority {
+model TaskPriority {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   // immutable key — never updated after creation
-  label     String   // display name — modifiable
-  value     String   // lowercase of label — auto-derived
+  name      String
+  label     String
+  value     String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Status {
+model TaskStatus {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String   // immutable key — never updated after creation
-  label     String   // display name — modifiable
-  value     String   // lowercase of label — auto-derived
+  name      String
+  label     String
+  value     String
   isDefault Boolean  @default(false)
-  order     Int      @default(9999) // lower = appears first; Backlog is always 1
+  order     Int      @default(9999)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model TaskVisual {
+model TaskSnapshot {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  key       String   @unique // e.g. "team_task_status_<teamId>" or "individual_priority_<userId>"
+  key       String   @unique
   title     String
   type      String   // task_status | priority | workload | completion_trend | overdue | productivity
   mode      String   // individual | team
@@ -376,35 +376,14 @@ model TaskVisual {
   updatedAt DateTime @updatedAt
 }
 
-// ─── Team Snapshot ──────────────────────────────────────────────────────────
-// Pre-aggregated chart snapshots for a team and its members.
-// Refreshed whenever a team or team-member record is mutated.
-// Types: member_count | task_status | task_priority | workload | completion_trend | member_growth
-model TeamSnapshot {
+model MeetingSnapshot {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  key       String   @unique // "team_<type>_<teamId>"
-  title     String
-  type      String   // member_count | task_status | task_priority | workload | completion_trend | member_growth
-  teamId    String   @db.ObjectId
-  chartType String
-  data      Json
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ─── Meeting Visuals ────────────────────────────────────────────────────────
-// Stores pre-aggregated chart snapshots for meeting analytics.
-// Refreshed automatically whenever a meeting is created, updated, or deleted.
-// Types: meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
-model MeetingVisual {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  key       String   @unique // "company_meeting_status_<companyId>" | "individual_frequency_<userId>"
+  key       String   @unique
   title     String
   type      String   // meeting_status | duration_trend | frequency | participant_engagement | time_of_day | recurring_ratio
   mode      String   // individual | company
-  userId    String?  @db.ObjectId // set when mode = individual
-  companyId String?  @db.ObjectId // set when mode = company
+  userId    String?  @db.ObjectId
+  companyId String?  @db.ObjectId
   chartType String
   data      Json
   isActive  Boolean  @default(true)

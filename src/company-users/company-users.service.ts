@@ -248,7 +248,7 @@ export class CompanyUsersService {
       if (!role) throw new NotFoundException('Role not found in this company');
     }
 
-    return this.prisma.companyUser.update({
+    await this.prisma.companyUser.update({
       where: { id },
       data: {
         ...(dto.firstName && { firstName: dto.firstName }),
@@ -256,15 +256,8 @@ export class CompanyUsersService {
         ...(dto.roleId && { roleId: dto.roleId }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-        updatedAt: true,
-      },
     });
+    return { message: 'User updated successfully' };
   }
 
   async remove(id: string, companyId: string) {

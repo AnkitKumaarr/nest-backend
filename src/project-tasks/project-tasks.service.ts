@@ -5,18 +5,18 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectTaskDto } from './dto/create-project-task.dto';
-import { ListTasksDto } from './dto/list-tasks.dto';
-import { UpdateTaskDto } from './dto/update-task.dto';
+import { ListProjectTasksDto } from './dto/list-project-tasks.dto';
+import { UpdateProjectTaskDto } from './dto/update-project-task.dto';
 import { renderHtml, extractPreview } from '../common/utils/content.util';
-import { TaskVisualsService } from '../task-visuals/task-visuals.service';
-import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
+import { TaskSnapshotsService } from '../task-snapshots/task-snapshots.service';
+import { AnalyticsSnapshotsService } from '../analytics-snapshots/analytics-snapshots.service';
 
 @Injectable()
 export class ProjectTasksService {
   constructor(
     private prisma: PrismaService,
-    private taskVisuals: TaskVisualsService,
-    private analyticsSnapshot: AnalyticsSnapshotService,
+    private taskSnapshots: TaskSnapshotsService,
+    private analyticsSnapshots: AnalyticsSnapshotsService,
   ) {}
 
   async create(dto: CreateProjectTaskDto, tokenCreatorId: string, tokenCompanyId: string) {
@@ -31,7 +31,6 @@ export class ProjectTasksService {
     const teamName = dto.teamName ?? team.name ?? null;
     const resolvedCreatorId = dto.creatorId || tokenCreatorId;
 
-    // Auto-fetch creatorName
     let creatorName = dto.creatorName ?? null;
     if (!creatorName && resolvedCreatorId) {
       const cu = await this.prisma.companyUser.findUnique({
@@ -49,7 +48,6 @@ export class ProjectTasksService {
       }
     }
 
-    // Auto-fetch inChargeName
     const resolvedInChargeId = dto.inChargeId || null;
     let inChargeName: string | null = dto.inChargeName ?? null;
     if (resolvedInChargeId) {
@@ -72,27 +70,24 @@ export class ProjectTasksService {
       inChargeName = null;
     }
 
-    // Auto-fetch statusName from Status collection
     let statusName: string | null = dto.statusName ?? null;
     if (dto.statusId && !statusName) {
-      const s = await this.prisma.status.findUnique({
+      const s = await this.prisma.taskStatus.findUnique({
         where: { id: dto.statusId },
         select: { label: true },
       });
       statusName = s?.label ?? null;
     }
 
-    // Auto-fetch priorityName from Priority collection
     let priorityName: string | null = dto.priorityName ?? null;
     if (dto.priorityId && !priorityName) {
-      const p = await this.prisma.priority.findUnique({
+      const p = await this.prisma.taskPriority.findUnique({
         where: { id: dto.priorityId },
         select: { label: true },
       });
       priorityName = p?.label ?? null;
     }
 
-    // Calculate position
     let position = 1000;
     const positionWhere: any = { companyId };
     positionWhere.statusId = dto.statusId || null;
@@ -108,7 +103,6 @@ export class ProjectTasksService {
       console.warn('Error getting last task position:', error);
     }
 
-    // Process content
     const taskContentJson = dto.taskContentJson ?? null;
     const renderedHtml = dto.renderedHtml ?? (taskContentJson ? renderHtml(taskContentJson) : null);
     const contentPreview = taskContentJson ? extractPreview(taskContentJson) : null;
@@ -138,37 +132,23 @@ export class ProjectTasksService {
       } as any,
     });
 
-    this.taskVisuals.refreshTeamSnapshots(dto.teamId).catch(() => null);
-    this.analyticsSnapshot.refreshTeamSnapshot(dto.teamId).catch(() => null);
+    this.taskSnapshots.refreshTeamSnapshots(dto.teamId).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(dto.teamId).catch(() => null);
     if (resolvedCreatorId) {
-      this.taskVisuals.refreshIndividualSnapshots(resolvedCreatorId).catch(() => null);
-      this.analyticsSnapshot.refreshUserSnapshot(resolvedCreatorId).catch(() => null);
+      this.taskSnapshots.refreshIndividualSnapshots(resolvedCreatorId).catch(() => null);
+      this.analyticsSnapshots.refreshUserSnapshot(resolvedCreatorId).catch(() => null);
     }
 
     return { message: 'Task created successfully' };
   }
 
-  async findAll(dto: ListTasksDto, companyId: string) {
+  async findAll(dto: ListProjectTasksDto, companyId: string) {
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 50;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (companyId) where.companyId = companyId;
+    const where: any = { companyId };
     if (dto.teamId) where.teamId = dto.teamId;
-    if (dto.statusName) where.statusName = dto.statusName;
-    if (dto.taskId) where.id = dto.taskId;
-
-    for (const filter of dto.filters ?? []) {
-      if (filter.type === 'date' && (filter.startDate || filter.endDate)) {
-        where.createdAt = {};
-        if (filter.startDate) where.createdAt.gte = new Date(filter.startDate);
-        if (filter.endDate) where.createdAt.lte = new Date(filter.endDate);
-      }
-      if (filter.type === 'users' && filter.userId?.length) {
-        where.assignedUserId = { in: filter.userId };
-      }
-    }
 
     const [tasks, total] = await Promise.all([
       this.prisma.projectTask.findMany({
@@ -196,7 +176,7 @@ export class ProjectTasksService {
   }
 
   async update(
-    dto: UpdateTaskDto,
+    dto: UpdateProjectTaskDto,
     userId: string,
     companyId: string,
     userPermissions: string[],
@@ -215,7 +195,6 @@ export class ProjectTasksService {
       throw new ForbiddenException('You do not have permission to edit this task');
     }
 
-    // Auto-fetch inChargeName when inChargeId changes
     let inChargeName: string | null | undefined;
     if (dto.inChargeId !== undefined) {
       if (!dto.inChargeId) {
@@ -237,13 +216,12 @@ export class ProjectTasksService {
       }
     }
 
-    // Auto-fetch statusName from Status collection when statusId changes
     let statusName: string | null | undefined = dto.statusName;
     if (dto.statusId !== undefined && dto.statusName === undefined) {
       if (!dto.statusId) {
         statusName = null;
       } else {
-        const s = await this.prisma.status.findUnique({
+        const s = await this.prisma.taskStatus.findUnique({
           where: { id: dto.statusId },
           select: { label: true },
         });
@@ -251,13 +229,12 @@ export class ProjectTasksService {
       }
     }
 
-    // Auto-fetch priorityName from Priority collection when priorityId changes
     let priorityName: string | null | undefined = dto.priorityName;
     if (dto.priorityId !== undefined && dto.priorityName === undefined) {
       if (!dto.priorityId) {
         priorityName = null;
       } else {
-        const p = await this.prisma.priority.findUnique({
+        const p = await this.prisma.taskPriority.findUnique({
           where: { id: dto.priorityId },
           select: { label: true },
         });
@@ -290,10 +267,10 @@ export class ProjectTasksService {
       } as any,
     });
 
-    this.taskVisuals.refreshTeamSnapshots(task.teamId).catch(() => null);
-    this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
-    this.analyticsSnapshot.refreshTeamSnapshot(task.teamId).catch(() => null);
-    this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
+    this.taskSnapshots.refreshTeamSnapshots(task.teamId).catch(() => null);
+    this.taskSnapshots.refreshIndividualSnapshots(userId).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(task.teamId).catch(() => null);
+    this.analyticsSnapshots.refreshUserSnapshot(userId).catch(() => null);
 
     return { message: 'Task updated successfully' };
   }
@@ -322,10 +299,10 @@ export class ProjectTasksService {
     await this.prisma.comment.deleteMany({ where: { taskId: id } });
     await this.prisma.projectTask.delete({ where: { id } });
 
-    this.taskVisuals.refreshTeamSnapshots(teamId).catch(() => null);
-    this.taskVisuals.refreshIndividualSnapshots(creatorId).catch(() => null);
-    this.analyticsSnapshot.refreshTeamSnapshot(teamId).catch(() => null);
-    this.analyticsSnapshot.refreshUserSnapshot(creatorId).catch(() => null);
+    this.taskSnapshots.refreshTeamSnapshots(teamId).catch(() => null);
+    this.taskSnapshots.refreshIndividualSnapshots(creatorId).catch(() => null);
+    this.analyticsSnapshots.refreshTeamSnapshot(teamId).catch(() => null);
+    this.analyticsSnapshots.refreshUserSnapshot(creatorId).catch(() => null);
 
     return { message: 'Task deleted successfully' };
   }

@@ -34,22 +34,22 @@ export class CompaniesService {
 
   private async seedGlobals() {
     const [statusCount, priorityCount] = await Promise.all([
-      this.prisma.status.count(),
-      this.prisma.priority.count(),
+      this.prisma.taskStatus.count(),
+      this.prisma.taskPriority.count(),
     ]);
 
     const tasks: Promise<any>[] = [];
 
     if (statusCount === 0) {
-      tasks.push(this.prisma.status.createMany({ data: DEFAULT_STATUSES }));
+      tasks.push(this.prisma.taskStatus.createMany({ data: DEFAULT_STATUSES }));
     } else {
       // Fix order on existing default statuses in case they were created before order field existed
       for (const s of DEFAULT_STATUSES) {
-        tasks.push(this.prisma.status.updateMany({ where: { name: s.name }, data: { order: s.order } }));
+        tasks.push(this.prisma.taskStatus.updateMany({ where: { name: s.name }, data: { order: s.order } }));
       }
     }
 
-    if (priorityCount === 0) tasks.push(this.prisma.priority.createMany({ data: DEFAULT_PRIORITIES }));
+    if (priorityCount === 0) tasks.push(this.prisma.taskPriority.createMany({ data: DEFAULT_PRIORITIES }));
     await Promise.all(tasks);
   }
 

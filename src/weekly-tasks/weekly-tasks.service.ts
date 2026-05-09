@@ -7,8 +7,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateWeeklyTaskDto } from './dto/create-weekly-task.dto';
 import { UpdateWeeklyTaskDto } from './dto/update-weekly-task.dto';
 import { ListWeeklyTaskDto } from './dto/list-weekly-task.dto';
-import { TaskVisualsService } from '../task-visuals/task-visuals.service';
-import { AnalyticsSnapshotService } from '../analytics-snapshot/analytics-snapshot.service';
+import { TaskSnapshotsService } from '../task-snapshots/task-snapshots.service';
+import { AnalyticsSnapshotsService } from '../analytics-snapshots/analytics-snapshots.service';
 import { extractTextFromHtml } from '../common/utils/content.util';
 
 const WEEK_SELECT = {
@@ -26,8 +26,8 @@ const WEEK_SELECT = {
 export class WeeklyTasksService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly taskVisuals: TaskVisualsService,
-    private readonly analyticsSnapshot: AnalyticsSnapshotService,
+    private readonly taskVisuals: TaskSnapshotsService,
+    private readonly analyticsSnapshot: AnalyticsSnapshotsService,
   ) {}
 
   async create(
@@ -116,7 +116,7 @@ export class WeeklyTasksService {
   }
 
   // 4️⃣ Create task
-  const task = await this.prisma.weekTask.create({
+  await this.prisma.weekTask.create({
     data: {
       parentId: dto.parentId,        // calendar document id
       weekId: dto.weekId,            // weekSlotId
@@ -144,7 +144,7 @@ export class WeeklyTasksService {
   this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
   this.updateTaskCount(dto.parentId, dto.weekId, dayId, 1).catch(() => null);
 
-  return task;
+  return { message: 'Weekly task created successfully' };
 }
 
   async findAll(
@@ -298,16 +298,15 @@ export class WeeklyTasksService {
     if (dto.blockerPreview !== undefined) data.blockerPreview = dto.blockerPreview;
     if (dto.assignedTo !== undefined) data.assignedTo = dto.assignedTo;
 
-    const updated = await this.prisma.weekTask.update({
+    await this.prisma.weekTask.update({
       where: { id: dto.id },
       data,
-      include: { week: { select: WEEK_SELECT } },
     });
 
     this.taskVisuals.refreshIndividualSnapshots(userId).catch(() => null);
     this.analyticsSnapshot.refreshUserSnapshot(userId).catch(() => null);
 
-    return updated;
+    return { message: 'Weekly task updated successfully' };
   }
 
   async remove(taskId: string, userId: string) {
