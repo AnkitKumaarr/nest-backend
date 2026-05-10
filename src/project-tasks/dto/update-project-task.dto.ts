@@ -14,6 +14,10 @@ export class UpdateProjectTaskDto {
 
   @IsOptional()
   @IsString()
+  teamId?: string;
+
+  @IsOptional()
+  @IsString()
   title?: string;
 
   @IsOptional()

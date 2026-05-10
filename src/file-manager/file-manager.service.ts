@@ -13,25 +13,27 @@ import * as path from 'path';
 export class FileManagerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
+  async createMany(
     userId: string,
-    file: Express.Multer.File,
+    files: Express.Multer.File[],
     folder: string | undefined,
-    customName: string | undefined,
     baseUrl: string,
   ) {
-    const url = `${baseUrl}/uploads/files/${file.filename}`;
-    const record = await this.prisma.fileManager.create({
-      data: {
-        userId,
-        url,
-        name: customName ?? file.originalname,
-        size: file.size,
-        mimeType: file.mimetype,
-        folder: folder ?? null,
-      },
-    });
-    return record;
+    const records = await Promise.all(
+      files.map((file) =>
+        this.prisma.fileManager.create({
+          data: {
+            userId,
+            url: `${baseUrl}/uploads/files/${file.filename}`,
+            name: file.originalname,
+            size: file.size,
+            mimeType: file.mimetype,
+            folder: folder ?? null,
+          },
+        }),
+      ),
+    );
+    return { data: records, message: `${records.length} file(s) uploaded successfully` };
   }
 
   async findAll(userId: string, dto: ListFilesDto) {
@@ -53,7 +55,7 @@ export class FileManagerService {
       this.prisma.fileManager.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    return { data, meta: { page, limit, totalRecords: total } };
   }
 
   async findOne(userId: string, id: string) {
@@ -76,17 +78,23 @@ export class FileManagerService {
 
   async remove(userId: string, id: string) {
     const file = await this.findOne(userId, id);
-
-    // Delete physical file from disk
-    const filename = file.url.split('/uploads/files/').pop();
-    if (filename) {
-      const filePath = path.join(process.cwd(), 'uploads', 'files', filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-
+    this.deleteFromDisk(file.url);
     await this.prisma.fileManager.delete({ where: { id: file.id } });
     return { message: 'File deleted successfully' };
+  }
+
+  async removeMany(userId: string, ids: string[]) {
+    const files = await Promise.all(ids.map((id) => this.findOne(userId, id)));
+    files.forEach((f) => this.deleteFromDisk(f.url));
+    await this.prisma.fileManager.deleteMany({ where: { id: { in: ids }, userId } });
+    return { message: `${ids.length} file(s) deleted successfully` };
+  }
+
+  private deleteFromDisk(url: string) {
+    const filename = url.split('/uploads/files/').pop();
+    if (filename) {
+      const filePath = path.join(process.cwd(), 'uploads', 'files', filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
   }
 }

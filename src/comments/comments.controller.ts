@@ -40,18 +40,6 @@ export class CommentsController {
     return this.service.addComment(dto.taskId, dto.comment, dto.renderedHtml, this.getAuthor(req));
   }
 
-  /** PATCH /api/v1/comments/:commentId */
-  @Patch(':commentId')
-  updateComment(@Param('commentId') commentId: string, @Body() dto: UpdateCommentDto, @Request() req: any) {
-    return this.service.updateComment(commentId, dto.comment, dto.renderedHtml, req.user.sub);
-  }
-
-  /** DELETE /api/v1/comments/:commentId */
-  @Delete(':commentId')
-  deleteComment(@Param('commentId') commentId: string, @Request() req: any) {
-    return this.service.deleteComment(commentId, req.user.sub);
-  }
-
   /** POST /api/v1/comments/reply */
   @Post('reply')
   addReply(@Body() dto: AddReplyDto, @Request() req: any) {
@@ -68,5 +56,17 @@ export class CommentsController {
   @Delete('reply/:commentId/:replyId')
   deleteReply(@Param('commentId') commentId: string, @Param('replyId') replyId: string, @Request() req: any) {
     return this.service.deleteReply(commentId, replyId, req.user.sub);
+  }
+
+  /** PATCH /api/v1/comments/:commentId */
+  @Patch(':commentId')
+  updateComment(@Param('commentId') commentId: string, @Body() dto: UpdateCommentDto, @Request() req: any) {
+    return this.service.updateComment(commentId, dto.comment, dto.renderedHtml, req.user.sub);
+  }
+
+  /** DELETE /api/v1/comments/:commentId */
+  @Delete(':commentId')
+  deleteComment(@Param('commentId') commentId: string, @Request() req: any) {
+    return this.service.deleteComment(commentId, req.user.sub);
   }
 }

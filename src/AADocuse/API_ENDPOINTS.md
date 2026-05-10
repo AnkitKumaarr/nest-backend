@@ -275,15 +275,26 @@
 
 ---
 
-## 10. Comments
+## 10. Comments & Replies
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET    | `/comments` | List comments (query: `taskId`) |
-| GET    | `/comments/:commentId` | Get a specific comment |
+| GET    | `/comments` | List comments for a task |
 | POST   | `/comments` | Add a comment to a task |
 | PATCH  | `/comments/:commentId` | Update a comment |
 | DELETE | `/comments/:commentId` | Delete a comment |
+| POST   | `/comments/reply` | Add a reply to a comment |
+| PATCH  | `/comments/reply` | Update a reply |
+| DELETE | `/comments/reply/:commentId/:replyId` | Delete a reply |
+
+### Query Params
+
+**GET `/comments`**
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `taskId` | string | Yes | Filter comments by task |
+| `page` | number | No | Default: 1 |
+| `limit` | number | No | Default: 20 |
 
 ### Payloads
 
@@ -292,28 +303,50 @@
 {
   "taskId": "objectId",
   "comment": {},
-  "renderedHtml": "string",
-  "contentPreview": "string"
+  "renderedHtml": "string"
 }
 ```
 
-**PATCH `/comments/:commentId`** — add/update replies:
+**PATCH `/comments/:commentId`**
 ```json
 {
   "comment": {},
+  "renderedHtml": "string"
+}
+```
+
+**POST `/comments/reply`**
+```json
+{
+  "commentId": "objectId",
+  "reply": {},
+  "renderedHtml": "string"
+}
+```
+
+**PATCH `/comments/reply`**
+```json
+{
+  "commentId": "objectId",
+  "replyId": "string",
+  "reply": {},
+  "renderedHtml": "string"
+}
+```
+
+**DELETE `/comments/reply/:commentId/:replyId`** — no body required.
+
+### Reply object shape (embedded inside comment)
+```json
+{
+  "id": "string",
+  "replyBy": { "userId": "objectId", "name": "string" },
+  "comment": {},
   "renderedHtml": "string",
-  "replies": [
-    {
-      "id": "objectId",
-      "replyBy": { "userId": "objectId", "name": "string" },
-      "comment": {},
-      "renderedHtml": "string",
-      "parentId": "objectId",
-      "contentPreview": "string",
-      "createdAt": "ISO8601",
-      "updatedAt": "ISO8601"
-    }
-  ]
+  "parentId": "objectId",
+  "contentPreview": "string",
+  "createdAt": "ISO8601",
+  "updatedAt": "ISO8601"
 }
 ```
 
@@ -534,23 +567,57 @@
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET    | `/file-manager` | List uploaded files (query: `folder`) |
-| POST   | `/file-manager` | Upload a file |
+| GET    | `/file-manager` | List uploaded files |
+| POST   | `/file-manager` | Upload one or more files |
 | GET    | `/file-manager/:id` | Get file metadata |
 | PATCH  | `/file-manager/:id` | Update file metadata |
-| DELETE | `/file-manager/:id` | Delete a file |
+| DELETE | `/file-manager/bulk` | Delete multiple files |
+| DELETE | `/file-manager/:id` | Delete a single file |
+
+### Query Params
+
+**GET `/file-manager`**
+| Param | Type | Description |
+|-------|------|-------------|
+| `folder` | string | Filter by folder |
+| `search` | string | Search by file name |
+| `page` | number | Default: 1 |
+| `limit` | number | Default: 20 |
 
 ### Payloads
 
-**POST `/file-manager`** — `multipart/form-data`
+**POST `/file-manager`** — `multipart/form-data` — accepts 1 to 20 files
 ```
-file:    <binary>
-folder:  "avatars" | "attachments" | ...
+files:   <binary[]>          (field name must be "files")
+folder:  "string"            (optional — applies to all uploaded files)
+```
+Response:
+```json
+{
+  "data": [
+    {
+      "id": "objectId",
+      "name": "filename.pdf",
+      "url": "http://host/uploads/files/uuid.pdf",
+      "mimeType": "application/pdf",
+      "size": 204800,
+      "folder": "string | null",
+      "userId": "objectId",
+      "createdAt": "ISO8601"
+    }
+  ],
+  "message": "2 file(s) uploaded successfully"
+}
 ```
 
 **PATCH `/file-manager/:id`**
 ```json
 { "name": "string", "folder": "string" }
+```
+
+**DELETE `/file-manager/bulk`**
+```json
+{ "ids": ["objectId1", "objectId2"] }
 ```
 
 ---

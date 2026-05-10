@@ -11,9 +11,9 @@ export class CreateProjectTaskDto {
   @IsString()
   title: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  teamId: string;
+  teamId?: string;
 
   @IsOptional()
   @IsString()

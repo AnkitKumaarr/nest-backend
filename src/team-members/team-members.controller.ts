@@ -33,10 +33,10 @@ export class TeamMembersController {
     return this.service.addMembers(dto, this.getCompanyId(req));
   }
 
-  /** PATCH /api/v1/team-members/:memberId */
-  @Patch(':memberId')
-  updateMember(@Param('memberId') memberId: string, @Body() dto: UpdateTeamMemberDto, @Request() req) {
-    return this.service.updateMember({ ...dto, id: memberId }, this.getCompanyId(req));
+  /** PATCH /api/v1/team-members/update */
+  @Patch('update')
+  updateMember(@Body() dto: UpdateTeamMemberDto, @Request() req) {
+    return this.service.updateMember(dto, this.getCompanyId(req));
   }
 
   /** DELETE /api/v1/team-members/:memberId */

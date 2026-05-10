@@ -20,15 +20,17 @@ export class ProjectTasksService {
   ) {}
 
   async create(dto: CreateProjectTaskDto, tokenCreatorId: string, tokenCompanyId: string) {
-    const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
-    if (!team) throw new NotFoundException('Team not found');
-    const companyId = tokenCompanyId || team.companyId;
+    let teamName: string | null = dto.teamName ?? null;
+    if (dto.teamId) {
+      const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
+      if (!team) throw new NotFoundException('Team not found');
+      teamName = teamName ?? team.name ?? null;
+    }
+    const companyId = tokenCompanyId;
 
     if (!companyId) {
-      throw new NotFoundException('Company ID not found for team. Please ensure the team is associated with a company.');
+      throw new NotFoundException('Company ID not found. Please ensure the team is associated with a company.');
     }
-
-    const teamName = dto.teamName ?? team.name ?? null;
     const resolvedCreatorId = dto.creatorId || tokenCreatorId;
 
     let creatorName = dto.creatorName ?? null;
@@ -132,8 +134,10 @@ export class ProjectTasksService {
       } as any,
     });
 
-    this.taskSnapshots.refreshTeamSnapshots(dto.teamId).catch(() => null);
-    this.analyticsSnapshots.refreshTeamSnapshot(dto.teamId).catch(() => null);
+    if (dto.teamId) {
+      this.taskSnapshots.refreshTeamSnapshots(dto.teamId).catch(() => null);
+      this.analyticsSnapshots.refreshTeamSnapshot(dto.teamId).catch(() => null);
+    }
     if (resolvedCreatorId) {
       this.taskSnapshots.refreshIndividualSnapshots(resolvedCreatorId).catch(() => null);
       this.analyticsSnapshots.refreshUserSnapshot(resolvedCreatorId).catch(() => null);
