@@ -7,14 +7,19 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateProjectDto, companyId: string, userId: string, userName: string) {
+    const data: any = {
+      name: dto.name,
+      description: dto.description ?? null,
+      companyId,
+      createdBy: { userId, name: userName },
+    };
+    
+    if (dto.teamId) {
+      data.teamId = dto.teamId;
+    }
+
     await this.prisma.project.create({
-      data: {
-        name: dto.name,
-        description: dto.description ?? null,
-        teamId: dto.teamId,
-        companyId,
-        createdBy: { userId, name: userName },
-      },
+      data,
     });
     return { message: 'Project created successfully' };
   }
@@ -55,6 +60,7 @@ export class ProjectsService {
       data: {
         ...(dto.name ? { name: dto.name } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.teamId !== undefined ? { teamId: dto.teamId } : {}),
       },
     });
     return { message: 'Project updated successfully' };

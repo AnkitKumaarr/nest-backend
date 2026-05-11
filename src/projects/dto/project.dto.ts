@@ -19,9 +19,9 @@ export class CreateProjectDto {
   @IsString()
   description?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  teamId: string;
+  teamId?: string;
 }
 
 export class UpdateProjectDto {
@@ -36,6 +36,10 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  teamId?: string;
 }
 
 class ProjectFiltersDto {
