@@ -38,9 +38,9 @@ class MemberFiltersDto {
 }
 
 export class ListTeamMembersDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  teamId: string;
+  teamId?: string;
 
   @IsOptional()
   @IsInt()

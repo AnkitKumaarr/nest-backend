@@ -2,8 +2,9 @@ import { IsString, IsOptional, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class FilterCompanyUsersDto {
+  @IsOptional()
   @IsString()
-  companyId: string;
+  companyId?: string;
 
   @IsOptional()
   @IsString()

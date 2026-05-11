@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsDateString, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class TeamFiltersDto {
@@ -27,30 +27,6 @@ export class ListTeamsDto {
   @IsOptional()
   @IsString()
   teamId?: string;
-
-  @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => TeamFiltersDto)
-  filters?: TeamFiltersDto;
-}
-
-export class ListMembersDto {
-  @IsNotEmpty()
-  @IsString()
-  teamId: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number = 25;
 
   @IsOptional()
   @IsObject()

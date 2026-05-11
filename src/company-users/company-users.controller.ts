@@ -25,8 +25,8 @@ export class CompanyUsersController {
 
   /** GET /api/v1/company-users */
   @Get()
-  findAll(@Query() dto: FilterCompanyUsersDto) {
-    return this.service.findAll(dto.companyId, dto.teamId, dto.page, dto.limit, dto.search);
+  findAll(@Query() dto: FilterCompanyUsersDto, @Request() req) {
+    return this.service.findAll(req.user.companyId, dto.teamId, dto.page, dto.limit, dto.search);
   }
 
   /** POST /api/v1/company-users */

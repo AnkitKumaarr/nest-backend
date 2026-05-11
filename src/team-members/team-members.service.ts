@@ -28,14 +28,21 @@ export class TeamMembersService {
     return { message: `${dto.members.length} member(s) added to team` };
   }
 
-  async listMembers(dto: ListTeamMembersDto, _companyId: string, userId: string) {
-    const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
-    if (!team) throw new NotFoundException('Team not found');
-
+  async listMembers(dto: ListTeamMembersDto, companyId: string, userId: string) {
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 25;
     const skip = (page - 1) * limit;
-    const where: any = { teamId: dto.teamId };
+    const where: any = {};
+
+    // If teamId is provided, filter by team and validate team exists
+    if (dto.teamId) {
+      const team = await this.prisma.team.findFirst({ where: { id: dto.teamId } });
+      if (!team) throw new NotFoundException('Team not found');
+      where.teamId = dto.teamId;
+    } else {
+      // If no teamId, return all team members for the company
+      where.companyId = companyId;
+    }
 
     if (dto.filters?.startDate || dto.filters?.endDate) {
       where.createdAt = {};
