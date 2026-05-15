@@ -23,37 +23,48 @@ import { UpdateBillingDto } from './dto/update-billing.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
+import {
+  SkipThrottle,
+  WriteThrottle,
+  ReadThrottle,
+  ExportThrottle,
+} from '../common/decorators/throttle.decorator';
 
 @Controller('settings')
 @UseGuards(CustomAuthGuard)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
-  /** GET /api/v1/settings */
+  /** GET /api/v1/settings — cheap single-document read, no limit needed */
+  @SkipThrottle()
   @Get()
   getAll(@Request() req) {
     return this.settingsService.getAll(req.user.sub);
   }
 
   /** PATCH /api/v1/settings/notifications */
+  @WriteThrottle()
   @Patch('notifications')
   updateNotifications(@Request() req, @Body() dto: UpdateNotificationsDto) {
     return this.settingsService.updateNotifications(req.user.sub, dto);
   }
 
   /** PATCH /api/v1/settings/security/two-factor */
+  @WriteThrottle()
   @Patch('security/two-factor')
   toggleTwoFactor(@Request() req, @Body() dto: ToggleTwoFactorDto) {
     return this.settingsService.toggleTwoFactor(req.user.sub, dto);
   }
 
   /** GET /api/v1/settings/security/devices */
+  @SkipThrottle()
   @Get('security/devices')
   getDevices(@Request() req) {
     return this.settingsService.getDevices(req.user.sub);
   }
 
   /** DELETE /api/v1/settings/security/devices */
+  @WriteThrottle()
   @Delete('security/devices')
   @HttpCode(HttpStatus.OK)
   revokeAllDevices(@Request() req) {
@@ -61,6 +72,7 @@ export class SettingsController {
   }
 
   /** DELETE /api/v1/settings/security/devices/:id */
+  @WriteThrottle()
   @Delete('security/devices/:id')
   @HttpCode(HttpStatus.OK)
   revokeDevice(@Request() req, @Param('id') id: string) {
@@ -68,12 +80,14 @@ export class SettingsController {
   }
 
   /** PATCH /api/v1/settings/extensions */
+  @WriteThrottle()
   @Patch('extensions')
   updateExtensions(@Request() req, @Body() dto: UpdateExtensionsDto) {
     return this.settingsService.updateExtensions(req.user.sub, dto);
   }
 
   /** POST /api/v1/settings/reset */
+  @WriteThrottle()
   @Post('reset')
   @HttpCode(HttpStatus.OK)
   resetToDefaults(@Request() req) {
@@ -81,30 +95,35 @@ export class SettingsController {
   }
 
   /** PATCH /api/v1/settings/account/status */
+  @WriteThrottle()
   @Patch('account/status')
   updateAccountStatus(@Request() req, @Body() dto: UpdateAccountStatusDto) {
     return this.settingsService.updateAccountStatus(req.user.sub, dto);
   }
 
   /** GET /api/v1/settings/account/billing */
+  @ReadThrottle()
   @Get('account/billing')
   getBilling(@Request() req) {
     return this.settingsService.getBilling(req.user.sub);
   }
 
   /** PATCH /api/v1/settings/account/billing */
+  @WriteThrottle()
   @Patch('account/billing')
   updateBilling(@Request() req, @Body() dto: UpdateBillingDto) {
     return this.settingsService.updateBilling(req.user.sub, dto);
   }
 
   /** PATCH /api/v1/settings/account/plan */
+  @WriteThrottle()
   @Patch('account/plan')
   updatePlan(@Request() req, @Body() dto: UpdatePlanDto) {
     return this.settingsService.updatePlan(req.user.sub, dto);
   }
 
   /** DELETE /api/v1/settings/account/plan */
+  @WriteThrottle()
   @Delete('account/plan')
   @HttpCode(HttpStatus.OK)
   cancelPlan(@Request() req) {
@@ -112,12 +131,14 @@ export class SettingsController {
   }
 
   /** GET /api/v1/settings/account/invoices */
+  @ReadThrottle()
   @Get('account/invoices')
   getInvoices(@Request() req, @Query() dto: ListInvoicesDto) {
     return this.settingsService.getInvoices(req.user.sub, dto);
   }
 
-  /** GET /api/v1/settings/account/invoices/:id/download */
+  /** GET /api/v1/settings/account/invoices/:id/download — expensive PDF generation */
+  @ExportThrottle()
   @Get('account/invoices/:id/download')
   async downloadInvoice(@Request() req, @Param('id') id: string, @Res() res: Response) {
     const invoice = await this.settingsService.getInvoiceForDownload(req.user.sub, id);

@@ -312,7 +312,7 @@ export class MailService {
             <div class="warning">
               <strong>⚠️ Important:</strong> You will be required to change this password on first login.
             </div>
-            <a href="http://localhost:5173/signin" class="btn">Sign In</a>
+            <a href="${process.env.FRONTEND_URL || '#'}/signin" class="btn">Sign In</a>
             <p style="color:#6c757d;font-size:14px;">If you did not expect this email, please contact your Company Administrator.</p>
           </div>
           <div class="footer">

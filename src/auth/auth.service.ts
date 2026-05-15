@@ -72,7 +72,7 @@ export class AuthService {
       return { message: 'If an account exists, a reset link has been sent.' };
     }
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 3600000);
+    const resetTokenExp = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await this.prisma.user.update({
       where: { email },
@@ -170,7 +170,6 @@ export class AuthService {
 
       try {
         await this.mailService.sendOtp(dto.email, otp);
-        console.log('OTP sent to your email', otp);
 
         // 6. LOG: Account Created (Pending Verification)
         await this.activityLogs.log(
@@ -435,12 +434,12 @@ export class AuthService {
       companyId: user.companyId,
     };
 
-    // Generate access token with 30 minutes expiry
+    // Access token: 30 days (long-lived; rotate via refresh endpoint)
     const access_token = await this.jwtService.signAsync(payload, {
       expiresIn: '30d',
     });
 
-    // Generate refresh token with longer expiry (7 days)
+    // Refresh token: 7 days
     const refresh_token = await this.jwtService.signAsync(payload, {
       expiresIn: '7d',
     });

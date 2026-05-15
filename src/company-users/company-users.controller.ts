@@ -17,6 +17,7 @@ import { FilterCompanyUsersDto } from './dto/filter-company-users.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ReadThrottle, WriteThrottle } from '../common/decorators/throttle.decorator';
 
 @Controller('company-users')
 @UseGuards(CustomAuthGuard)
@@ -24,12 +25,14 @@ export class CompanyUsersController {
   constructor(private readonly service: CompanyUsersService) {}
 
   /** GET /api/v1/company-users */
+  @ReadThrottle()
   @Get()
   findAll(@Query() dto: FilterCompanyUsersDto, @Request() req) {
     return this.service.findAll(req.user.companyId, dto.teamId, dto.page, dto.limit, dto.search);
   }
 
-  /** POST /api/v1/company-users */
+  /** POST /api/v1/company-users — admin only */
+  @WriteThrottle()
   @Post()
   @UseGuards(RolesGuard)
   @Roles('admin')
@@ -38,12 +41,14 @@ export class CompanyUsersController {
   }
 
   /** GET /api/v1/company-users/:id */
+  @ReadThrottle()
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
     return this.service.findOne(id, req.user.companyId);
   }
 
-  /** PATCH /api/v1/company-users/:id */
+  /** PATCH /api/v1/company-users/:id — admin only */
+  @WriteThrottle()
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')
@@ -51,7 +56,8 @@ export class CompanyUsersController {
     return this.service.update(id, dto, req.user.companyId);
   }
 
-  /** DELETE /api/v1/company-users/:id */
+  /** DELETE /api/v1/company-users/:id — admin only */
+  @WriteThrottle()
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('admin')

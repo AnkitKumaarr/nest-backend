@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { MeetingSnapshotsService } from './meeting-snapshots.service';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
+import { AnalyticsThrottle } from '../common/decorators/throttle.decorator';
 
 @Controller('meeting-snapshots')
 @UseGuards(CustomAuthGuard)
@@ -9,25 +10,25 @@ export class MeetingSnapshotsController {
 
   // ─── Individual ───────────────────────────────────────────────────────────
 
-  /** GET /meeting-snapshots/meeting-status */
+  @AnalyticsThrottle()
   @Get('meeting-status')
   getIndividualStatus(@Request() req) {
     return this.meetingSnapshotsService.getIndividualVisual('meeting_status', req.user.sub);
   }
 
-  /** GET /meeting-snapshots/duration-trend */
+  @AnalyticsThrottle()
   @Get('duration-trend')
   getIndividualDurationTrend(@Request() req) {
     return this.meetingSnapshotsService.getIndividualVisual('duration_trend', req.user.sub);
   }
 
-  /** GET /meeting-snapshots/frequency */
+  @AnalyticsThrottle()
   @Get('frequency')
   getIndividualFrequency(@Request() req) {
     return this.meetingSnapshotsService.getIndividualVisual('frequency', req.user.sub);
   }
 
-  /** GET /meeting-snapshots/time-of-day */
+  @AnalyticsThrottle()
   @Get('time-of-day')
   getIndividualTimeOfDay(@Request() req) {
     return this.meetingSnapshotsService.getIndividualVisual('time_of_day', req.user.sub);
@@ -35,37 +36,37 @@ export class MeetingSnapshotsController {
 
   // ─── Company ──────────────────────────────────────────────────────────────
 
-  /** GET /meeting-snapshots/company/:companyId/meeting-status */
+  @AnalyticsThrottle()
   @Get('company/:companyId/meeting-status')
   getCompanyStatus(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('meeting_status', companyId);
   }
 
-  /** GET /meeting-snapshots/company/:companyId/duration-trend */
+  @AnalyticsThrottle()
   @Get('company/:companyId/duration-trend')
   getCompanyDurationTrend(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('duration_trend', companyId);
   }
 
-  /** GET /meeting-snapshots/company/:companyId/frequency */
+  @AnalyticsThrottle()
   @Get('company/:companyId/frequency')
   getCompanyFrequency(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('frequency', companyId);
   }
 
-  /** GET /meeting-snapshots/company/:companyId/participant-engagement */
+  @AnalyticsThrottle()
   @Get('company/:companyId/participant-engagement')
   getCompanyParticipantEngagement(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('participant_engagement', companyId);
   }
 
-  /** GET /meeting-snapshots/company/:companyId/time-of-day */
+  @AnalyticsThrottle()
   @Get('company/:companyId/time-of-day')
   getCompanyTimeOfDay(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('time_of_day', companyId);
   }
 
-  /** GET /meeting-snapshots/company/:companyId/recurring-ratio */
+  @AnalyticsThrottle()
   @Get('company/:companyId/recurring-ratio')
   getCompanyRecurringRatio(@Param('companyId') companyId: string) {
     return this.meetingSnapshotsService.getCompanyVisual('recurring_ratio', companyId);

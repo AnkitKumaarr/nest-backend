@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, Request, UseGuards } from '@nestjs/commo
 import { TaskSnapshotsService } from './task-snapshots.service';
 import { GetVisualDto } from './dto/get-visual.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
+import { AnalyticsThrottle } from '../common/decorators/throttle.decorator';
 
 @Controller('task-snapshots')
 @UseGuards(CustomAuthGuard)
@@ -10,21 +11,25 @@ export class TaskSnapshotsController {
 
   // ─── Individual ───────────────────────────────────────────────────────────
 
+  @AnalyticsThrottle()
   @Get('status')
   getIndividualTaskStatus(@Request() req, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getIndividualVisual('task_status', req.user.sub, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('priority')
   getIndividualPriority(@Request() req, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getIndividualVisual('priority', req.user.sub, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('completion-trend')
   getIndividualCompletionTrend(@Request() req, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getIndividualVisual('completion_trend', req.user.sub, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('overdue')
   getIndividualOverdue(@Request() req, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getIndividualVisual('overdue', req.user.sub, dto);
@@ -32,31 +37,37 @@ export class TaskSnapshotsController {
 
   // ─── Team ─────────────────────────────────────────────────────────────────
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/status')
   getTeamTaskStatus(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('task_status', teamId, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/priority')
   getTeamPriority(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('priority', teamId, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/workload')
   getTeamWorkload(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('workload', teamId, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/completion-trend')
   getTeamCompletionTrend(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('completion_trend', teamId, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/overdue')
   getTeamOverdue(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('overdue', teamId, dto);
   }
 
+  @AnalyticsThrottle()
   @Get('team/:teamId/productivity')
   getTeamProductivity(@Param('teamId') teamId: string, @Query() dto: GetVisualDto) {
     return this.taskSnapshotsService.getTeamVisual('productivity', teamId, dto);

@@ -25,6 +25,11 @@ import { CustomAuthGuard } from '../auth/guards/auth.guard';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { ListFilesDto } from './dto/list-files.dto';
 import { CreateFileDto } from './dto/create-file.dto';
+import {
+  ReadThrottle,
+  WriteThrottle,
+  UploadThrottle,
+} from '../common/decorators/throttle.decorator';
 
 class DeleteManyDto {
   @IsArray()
@@ -38,6 +43,7 @@ export class FileManagerController {
   constructor(private readonly fileManagerService: FileManagerService) {}
 
   /** POST /api/v1/file-manager — upload one or more files */
+  @UploadThrottle()
   @Post()
   @UseInterceptors(
     FilesInterceptor('files', 20, {
@@ -62,24 +68,28 @@ export class FileManagerController {
   }
 
   /** GET /api/v1/file-manager */
+  @ReadThrottle()
   @Get()
   findAll(@Request() req, @Query() dto: ListFilesDto) {
     return this.fileManagerService.findAll(req.user.sub, dto);
   }
 
   /** GET /api/v1/file-manager/:id */
+  @ReadThrottle()
   @Get(':id')
   findOne(@Request() req, @Param('id') id: string) {
     return this.fileManagerService.findOne(req.user.sub, id);
   }
 
   /** PATCH /api/v1/file-manager/:id */
+  @WriteThrottle()
   @Patch(':id')
   update(@Request() req, @Param('id') id: string, @Body() dto: UpdateFileDto) {
     return this.fileManagerService.update(req.user.sub, id, dto);
   }
 
   /** DELETE /api/v1/file-manager/bulk — delete multiple files */
+  @WriteThrottle()
   @Delete('bulk')
   @HttpCode(HttpStatus.OK)
   removeMany(@Request() req, @Body() dto: DeleteManyDto) {
@@ -87,6 +97,7 @@ export class FileManagerController {
   }
 
   /** DELETE /api/v1/file-manager/:id — delete a single file */
+  @WriteThrottle()
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   remove(@Request() req, @Param('id') id: string) {

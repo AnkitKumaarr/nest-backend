@@ -17,6 +17,7 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { AddReplyDto } from './dto/add-reply.dto';
 import { UpdateReplyDto } from './dto/update-reply.dto';
 import { CustomAuthGuard } from '../auth/guards/auth.guard';
+import { ReadThrottle, WriteThrottle } from '../common/decorators/throttle.decorator';
 
 @Controller('comments')
 @UseGuards(CustomAuthGuard)
@@ -29,42 +30,49 @@ export class CommentsController {
   }
 
   /** GET /api/v1/comments?taskId=... */
+  @ReadThrottle()
   @Get()
   listComments(@Query() dto: ListCommentsDto) {
     return this.service.listComments(dto.taskId, dto.page ?? 1, dto.limit ?? 20);
   }
 
   /** POST /api/v1/comments */
+  @WriteThrottle()
   @Post()
   addComment(@Body() dto: AddCommentDto, @Request() req: any) {
     return this.service.addComment(dto.taskId, dto.comment, dto.renderedHtml, this.getAuthor(req));
   }
 
   /** POST /api/v1/comments/reply */
+  @WriteThrottle()
   @Post('reply')
   addReply(@Body() dto: AddReplyDto, @Request() req: any) {
     return this.service.addReply(dto.commentId, dto.reply, dto.renderedHtml, this.getAuthor(req));
   }
 
   /** PATCH /api/v1/comments/reply */
+  @WriteThrottle()
   @Patch('reply')
   updateReply(@Body() dto: UpdateReplyDto, @Request() req: any) {
     return this.service.updateReply(dto.commentId, dto.replyId, dto.reply, dto.renderedHtml, req.user.sub);
   }
 
   /** DELETE /api/v1/comments/reply/:commentId/:replyId */
+  @WriteThrottle()
   @Delete('reply/:commentId/:replyId')
   deleteReply(@Param('commentId') commentId: string, @Param('replyId') replyId: string, @Request() req: any) {
     return this.service.deleteReply(commentId, replyId, req.user.sub);
   }
 
   /** PATCH /api/v1/comments/:commentId */
+  @WriteThrottle()
   @Patch(':commentId')
   updateComment(@Param('commentId') commentId: string, @Body() dto: UpdateCommentDto, @Request() req: any) {
     return this.service.updateComment(commentId, dto.comment, dto.renderedHtml, req.user.sub);
   }
 
   /** DELETE /api/v1/comments/:commentId */
+  @WriteThrottle()
   @Delete(':commentId')
   deleteComment(@Param('commentId') commentId: string, @Request() req: any) {
     return this.service.deleteComment(commentId, req.user.sub);
